@@ -1,0 +1,3843 @@
+diff --git a/cocoroms/Makefile b/cocoroms/Makefile
+index 0874881..2e3bbeb 100644
+--- a/cocoroms/Makefile
++++ b/cocoroms/Makefile
+@@ -9,8 +9,10 @@ cb_equates.asm: equates.asm bas.asm
+ extbas11.rom: cb_equates.asm extbas.asm
+ 	lwasm --raw -o $@ $^
+ 
+-ecb_equates.asm: equates.asm bas.asm extbas.asm
+-	lwasm --symbol-dump --no-output $^ > $@
++ecb_equates.asm: equates.asm bas.asm extbas.asm rom16kvars.asm
++	lwasm --symbol-dump --no-output equates.asm bas.asm extbas.asm > $@.tmp
++	awk '{if ($$1=="DFLBUF") {print "           IFDEF ROM16K"; print "           ORG  " $$3; print "           USE  rom16kvars.asm"; print "DFLBUF     EQU  *"; print "           ELSE"; print "DFLBUF     EQU  " $$3; print "           ENDC";} else print;}' < $@.tmp >$@
++	rm $@.tmp
+ 
+ disk11.rom: ecb_equates.asm disk.asm
+ 	lwasm --raw --pragma=noindex0tonone -o $@ $^
+@@ -19,7 +21,7 @@ coco3.rom: equates.asm coco3.asm
+ 	lwasm --raw -o $@ $^
+ 
+ checksum:
+-	md5 *.rom >md5sums-new.txt
++	md5sum *.rom >md5sums-new.txt
+ 
+ clean:
+ 	-rm -f bas13.rom cb_equates.asm ecb_equates.asm extbas11.rom disk11.rom coco3.rom md5sums-new.txt
+diff --git a/cocoroms/extbas.asm b/cocoroms/extbas.asm
+index cb207e8..2595aeb 100644
+--- a/cocoroms/extbas.asm
++++ b/cocoroms/extbas.asm
+@@ -905,7 +905,7 @@ L87EB	CLR	FPA0+2	* CLEAR BOTTOM TWO
+ 	CLR	FPA0+3	* BYTES OF FPA0
+ 	LDX	#FPA0+2	BYTES 2,3 OF FPA0 = (TEMPORARY ACCUMULATOR)
+ 	JSR	GETNCH	GET A CHARACTER FROM BASIC
+-	CMPA	#'O	OCTAL VALUE?
++L87F4	CMPA	#'O	OCTAL VALUE?
+ 	BEQ	L880A	YES
+ 	CMPA	#'H	HEX VALUE?
+ 	BEQ	L881F	YES
+@@ -953,7 +953,7 @@ XVEC15	PULS	U	PULL RETURN ADDRESS AND SAVE IN U REGISTER
+ 	JSR	GETNCH	GET CHARACTER FROM BASIC
+ 	CMPA	#'&	HEX AND OCTAL VARIABLES ARE PRECEEDED BY &
+ 	BEQ	L87EB	PROCESS A ‘&‘ VARIABLE
+-	CMPA	#$CC	TOKEN FOR FN
++L8852	CMPA	#$CC	TOKEN FOR FN
+ 	BEQ	L88B4	PROCESS FN CALL
+ 	CMPA	#$FF	CHECK FOR SECONDARY TOKEN
+ 	BNE	L8862	NOT SECONDARY
+diff --git a/cocoroms/rom16kvars.asm b/cocoroms/rom16kvars.asm
+new file mode 100644
+index 0000000..20b64d4
+--- /dev/null
++++ b/cocoroms/rom16kvars.asm
+@@ -0,0 +1,18 @@
++DATAAREA16        EQU *
++CURX            RMB 1       CURSOR COLUMN POSITION (0-50 OR 0-63)
++CURY            RMB 1       CURSOR ROW POSITION (0-23)
++CURSORCHAR      RMB 1       $81 = BLOCK, $8D = THICK UL
++CURSORDELAY     RMB 2
++REVERSE         RMB 1       0 = GREEN ON BLACK; 255 = BLACK ON GREEN
++CURSORENABLE    RMB 1       0 = NO TEXT CURSOR; 1 = FIXED; 2 = BLINK
++TEXTMODE        RMB 1       0 = 51x24; 1 = 64x24
++FONTLOCATION    RMB 2
++CLEARKEYCLEARS  RMB 1       NEXT PRESS OF CLEAR KEY DOES CLS
++TIMVALMSW       RMB 2       MSW OF EXTENDED TIMER
++DWPRINTER       RMB 1       FLAG FOR DRIVEWIRE PRINTER REDIRECTION
++ERRNO           RMB 1       ERROR NUMBER (x2)
++ERRLINE         RMB 2       BASIC LINE NUMBER OF ERROR
++ONERRSTMT       RMB 2       BASIC LINE NUMBER OF 'ON ERROR' STATEMENT
++ONERRTARGET     RMB 2       BASIC LINE NUMBER TO JUMP ON ERROR
++TICKSPERSEC     RMB 1       WHAT TO DIVIDE TIMER/TIMERL BY TO GET SECONDS
++ALTCOLOR	RMB 1       TEXT MODE COLOR: 0 = GREEN, 8 = ORANGE
+diff --git a/hdbdos/Makefile b/hdbdos/Makefile
+index 7d0dddf..777ab20 100644
+--- a/hdbdos/Makefile
++++ b/hdbdos/Makefile
+@@ -35,6 +35,8 @@ MAKEWAV		= makewav -r -c
+ CECB		= cecb
+ 
+ all: $(ALLOBJS)
++	./mkslacklist.sh
++
+ experimental: all $(HISPEED)
+ 
+ preload: preload.asm
+@@ -46,8 +48,13 @@ postload: postload.asm
+ %.bin : preload %.rom postload
+ 	$(MERGE) $+ > $@
+ 
+-%.rom : hdbdos.asm
+-	$(AS) $(EQUATES) hdbdos.asm -o$@ $(FLAGS)
++%.rom : hdbdos.asm el.asm font51.asm font64.asm
++	$(AS) $(EQUATES) hdbdos.asm -l$@.tmp.lst -o$@ $(FLAGS)
++	sed -e 's/([^(]*):[0-9]*//' <$@.tmp.lst >$@.lst
++	rm -f $@.tmp.lst
++	$(AS) $(EQUATES) -DROM16K hdbdos.asm -l16k-$@.tmp.lst -o16k-$@ $(FLAGS)
++	sed -e 's/([^(]*):[0-9]*//' <16k-$@.tmp.lst >16k-$@.lst
++	rm -f 16k-$@.tmp.lst
+ 
+ %.wav : %.bin
+ 	$(MAKEWAV) -o$@ -n$(LABEL) $<
+@@ -235,4 +242,5 @@ hdblbadgn.rom: FLAGS = -DIDE -DUSELBA -DLevel=1 -DDRAGON
+ 
+ clean:
+ 	-rm -f preload postload $(HDBROM) $(HDBBIN) $(HDBCAS) \
++	16k-hdb*.rom 16k-hdb*.lst hdb*.lst slacks.txt \
+ 	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
+diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
+new file mode 100644
+index 0000000..12a1d0c
+--- /dev/null
++++ b/hdbdos/README-16K.txt
+@@ -0,0 +1,94 @@
++Package contents:
++
++- ROMs:
++16k-hdbdw3arduino.rom     Arduino
++16k-hdbdw3bck.rom         Becker
++16k-hdbdw3bckt.rom        Becker (with timeout)
++16k-hdbdw3bckwifi.rom     Becker (different address for WiFi)
++16k-hdbtc3.rom            Cloud-9 TC^3 SCSI Interface
++16k-hdbsdc.rom            CoCoSDC
++16k-hdbd4n1.rom           Disto 4-N-1 SCSI
++16k-hdbdhdii.rom          Disto HD-II
++16k-hdbdw3cc1.rom         DriveWire 3 (CoCo 1)
++16k-hdbdw3cc2.rom         DriveWire 3 (CoCo 2)
++16k-hdbdw3ln.rom          DriveWire 3 (CoCoLINK RS232 Pak)
++16k-hdbdw3sy.rom          DriveWire 3 (Deluxe RS232 Pak)
++16k-hdbdw3dm.rom          DriveWire 3 (Direct Modem RS232 Pak)
++16k-hdbdw3dg.rom          DriveWire 3 (Dragon in CoCo mode)
++16k-hdbchs.rom            IDE CHS
++16k-hdblba.rom            IDE LBA
++16k-hdbdw3jc2.rom         J&M Disk Controller
++16k-hdbkenton.rom         Kenton SCSI Interface
++16k-hdblrtech.rom         LRTech Controller
++
++- Listing files
++*.rom.lst                 Source with generated machine code, one for each of
++                          the above ROMs
++
++- Patch:
++hdbdos-16k.patch          Changes to generate HDB-DOS/16K, applies cleanly to
++                          ToolShed GitHub repository as of May 26, 2025
++                          (https://github.com/nitros9project/toolshed)
++
++README.txt                This file
++
++
++TO DO:
++
++- ON ERR
++- ON BRK
++- Option to boot in text mode:
++  - Different ROM for default in text mode
++  - One hot key to swap the text mode at boot
++- Make some use of a 6309
++- Make HEX$ accept values up to 2^32-1
++  - Use GETABXFROMFPA0 instead of LB740 in new HEXDOLBIG
++  - Create a BIN$ function (nobody cares about OCT$)
++- Make the AND and OR operators accept values from -2^31 to 2^31-1
++  - Create a XOR operator
++- Support for text-mode inverse video and (in the 6847T1) lowercase
++
++
++SUMMARY OF CHANGES:
++
++- All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
++  garbled upon loading
++- 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
++- LOCATE works as expected - works in the 32x16 screen too, unlike the CoCo3
++- Support for BUTTON function including 2nd joystick button (requires internal
++  wiring; testers welcome)
++- DIR output uses available screen width
++- TIMERL function similar to TIMER but wraps at 2^32 (2 years, 98.5 days)
++- HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
++  switch to RAM and ROM respectively
++- HSET COLOR 1 sets text screen to orange; HSET COLOR 0 sets it back to green.
++- HPOINT gives you some system information:
++  - HPOINT(0) returns the CPU model (6809 or 6309)
++  - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
++    (Currently, always returns zero.)
++  - HPOINT(2) returns whether BASIC is running from RAM (see HSET MEM)
++  - HPOINT(3) returns the address of a useful data area for manipulating the
++    new graphics-text mode (cursor blink, shape etc); see new file
++    cocoroms/rom16kvars.asm
++  - HPOINT(4) returns the frequency of timer interrupts - 50 for PAL, 60 for
++    NTSC - this is the value you need to divide TIMER/TIMERL by to get seconds
++- BASIC printer output redirected to DriveWire virtual printer (experimental),
++  now with a flag in the aforementioned data area to disable redirection,
++  still with no BASIC interface to control it
++- Accepts binary constants with &B, just like &H and &O
++  - Also, these notations can yield values up to 2^32-1
++  - Ancient bug in &O (accepted 8 as a digit) fixed
++- ERNO and ERLIN - not much use until ONERR works
++  - Differently from the CoCo 3, they can be examined in direct mode after
++    the BASIC program ends.
++
++
++ADDED FILES:
++
++cocoroms/rom16kvars.asm
++hdbdos/README-16K.txt
++hdbdos/el.asm
++hdbdos/font51.asm
++hdbdos/font64.asm
++hdbdos/mk16kpackage.sh
++hdbdos/mkslacklist.sh
+diff --git a/hdbdos/el.asm b/hdbdos/el.asm
+new file mode 100644
+index 0000000..ec5bdb1
+--- /dev/null
++++ b/hdbdos/el.asm
+@@ -0,0 +1,1384 @@
++* HDB-DOS/16K: Additions and Enhancements to HDB-DOS
++* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
++*
++* This program is free software: you can redistribute it and/or modify
++* it under the terms of the GNU Lesser General Public License as
++* published by the Free Software Foundation, either version 2.1 of the
++* License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU Lesser General Public License for more details.
++*
++* You should have received a copy of the GNU Lesser General Public
++* License along with this program.
++* If not, see <http://www.gnu.org/licenses/>.
++
++STARTGRAPHICS   EQU 1       * POWERUP VIDEO MODE 0=TXT 1=GRAPHICS
++EUROCLOCK	EQU 50
++AMERICLOCK	EQU 60
++
++		ORG $E000
++		* BRA INIT16K		* UNCOMMENT IF PUTTING STUFF
++
++INIT16K		PSHS A,B,X,Y,U
++
++		CLRA
++		DECA			* VARIABLES INITIALIZED TO $FF
++		STA ERRNO
++		STA REVERSE
++
++		INCA			* VARIABLES INITIALIZED TO ZERO
++		STA CURX
++		STA CURY
++		STA CLEARKEYCLEARS
++		STA FORCOL
++
++		INCA			* VARIABLES INITIALIZED TO ONE
++		STA BAKCOL
++		IFDEF DW
++		STA DWPRINTER
++		ENDC
++
++		INCA			* VARIABLES INITIALIZED TO TWO
++		STA CURSORENABLE
++
++		LDB #$40		* CURSOR DELEY DEFAULT IS $240
++		STD CURSORDELAY
++		LDA #$8D
++		STA CURSORCHAR
++
++		LDX	#0		* FIND OUT WHETHER IRQ IS 50 OR 60 HZ
++		LDA	TIMVAL+1
++WAIT1STCHANGE	LDB	TIMVAL+1
++		PSHS	B
++		CMPA	,S+
++		BEQ	WAIT1STCHANGE
++WAIT2NDCHANGE	LEAX	1,X
++		LDA	TIMVAL+1
++		PSHS	B
++		CMPA	,S+
++		BEQ	WAIT2NDCHANGE
++		LDA	#EUROCLOCK
++		CMPX	#649		* A REASONABLE THRESHOLD
++		BHI	NOBURGERS4ME
++		LDA	#AMERICLOCK
++NOBURGERS4ME	STA	TICKSPERSEC
++
++		BSR PMODE4
++		BSR SET51COLS
++
++		LBSR CCCLS		* STARTUP MESSAGE
++		LBSR GETPARMS
++		LDX #LC139
++		LBSR PRINTSTR
++		LDX #SIGNON
++		LBSR PRINTSTR
++
++		LDY USRADR		* POINT TO START OF USR ARRAY +8 WORDS
++		LEAY 16,Y
++		LDX #USR8FUNC
++		STX ,Y			* SET USR8
++
++		LDD #CACHAVEC2
++		STD RVEC2+1
++		LDD #CACHAVEC3
++		STD RVEC3+1
++		LDD #CACHAVEC4
++		STD RVEC4+1
++		LDD #CACHAVEC12
++		STD RVEC12+1
++		LDD #CACHAVEC22
++		STD RVEC22+1
++		LDD #CACHAVEC15
++		STD RVEC15+1
++		LDD #CACHAVEC16
++		STD RVEC16+1
++		LDD #CACHAVEC18
++		STD RVEC18+1
++		LDD #CACHAVEC19
++		STD RVEC19+1
++
++		JSR JCMDS
++		IFNE STARTGRAPHICS
++		JSR DOSCREEN1		* COMMENTED: START IN 32X16, ELSE 51X24
++		ENDC
++
++		PULS A,B,X,Y,U,PC
++
++SET64COLS	PSHS A,B
++		BSR PMODE4
++		LDA #1
++		STA TEXTMODE
++		LDD #CHARSET64
++		STD FONTLOCATION
++		PULS A,B,PC
++
++SET51COLS	PSHS A,B
++		BSR PMODE4
++		CLRA
++		STA TEXTMODE
++		LDD #CHARSET51
++		STD FONTLOCATION
++		PULS A,B,PC
++
++PMODE4		LDA #4
++		STA PMODE
++		LDA GRPRAM
++		STA BEGGRP
++		ADDA #$18
++		STA ENDGRP
++		LDA #$20
++		STA HORBYT
++		RTS
++
++*
++* MACROS
++*
++
++* LOGICAL SHIFT RIGHT ACCA BY ACCB BITS (TRASHES ACCB)
++SHRABYB		MACRO
++@L		LSRA
++		DECB
++		BNE @L
++		ENDM
++
++* LOGICAL SHIFT RIGHT X BY ACCB BITS
++SHRXBYB		MACRO
++		PSHS B
++		EXG D,X
++@L		LSRA
++		RORB
++		DEC ,S
++		BNE @L
++		EXG D,X
++		LEAS 1,S
++		ENDM
++
++*
++* MAIN CODE
++*
++
++* ROM SUBROUTINE POINTERS
++CLSRETN		EQU $A913	* ROM CLS RETURN ADDRESS ($BA62 ON DRAGON)
++
++* LOOKUP TABLES FOR BYTE POSITION AND BIT DISPLACEMENTS
++* OF A 5-BIT STRING WITHIN A 40-BIT BLOCK
++
++BITDISPS	FCB 1,6,3,0,5,2,7,4
++BYTEDISPS	FCB 0,0,1,2,2,3,3,4
++
++EEMSG		FCC 'Thx Boisy, Tormod, Bob, Steve, Allen etc! --Juan'
++		FCB 13,0
++
++* CONSOLE OUT RAM HOOK
++CACHAVEC3	PSHS B
++		LDB DEVNUM
++		IFDEF DW
++		TST DWPRINTER
++		BEQ USEHWPRINTER
++		CMPB #-2
++		LBEQ PRINTEROUT
++		ENDC
++USEHWPRINTER	TSTB
++		PULS B
++		LBNE DVEC3
++		BSR TSTHIRES
++		LBEQ ISHIRES
++
++		PSHS X,B,A
++		LDX #SAMREG+8
++		STA 10,X
++		STA $08,X
++		STA $06,X
++		STA $04,X
++		STA $02,X
++		STA $01,X
++		STA $-02,X
++		STA $-04,X
++		STA $-06,X
++		STA $-08,X
++		LDA PIA1+2
++		ANDA #$07
++		ORA ALTCOLOR		* EXPERIMENTAL FOR ORANGE DISPLAY
++		STA PIA1+2
++		PULS A,B,X
++		LEAS 2,S
++		JMP LA30A
++
++* SET ZF IF IN 256x192 GRAPHICS SCREEN
++
++TSTHIRES	PSHS A
++		LDA PIA1+2
++		ANDA #$F0
++		CMPA #$F0
++		PULS A,PC
++
++* OBTAIN MEMORY LOCATION FOR CHARACTER COORDINATES
++*
++* INPUT:   ACCA = LINE NUMBER (0-23)
++*          ACCB = COLUMN NUMBER (0-63)
++*                 (NOT TESTED FOR OUT OF RANGE)
++* OUTPUT:  Y    = MEMORY LOCATION
++*          ACCB = BIT DISPLACEMENT
++* TRASHES: ACCA, X
++
++GETMEMPOSXY51	PSHS B
++		CLRB
++		LDY BEGGRP
++		LEAY D,Y	* 256 BYTES/LINE. SO CONVENIENT,
++		LDB ,S		* SO NOT PORTABLE.
++		LSRB		* PUSH LINE POS
++		LSRB
++		LSRB		* B = # OF 5-BYTE ADVS
++		LEAY B,Y	* ADD 1X IT
++		LSLB
++		LSLB
++		LEAY B,Y	* PLUS 4X IT
++		PULS B
++		ANDB #7		* REMAINDER OF ADVANCEMENT
++		LDX #BYTEDISPS	* WE GET FROM TABLE
++		LDA B,X
++		LEAY A,Y	* Y IS IN CORRECT BYTE POS
++		LDX #BITDISPS
++		LDB B,X		* GOT BIT DISPLACEMENT
++		RTS
++
++GETMEMPOSXY	TST TEXTMODE
++		BEQ GETMEMPOSXY51
++
++		PSHS B
++		CLRB
++		LDY BEGGRP
++		LEAY D,Y	* 256 BYTES/LINE. SO CONVENIENT,
++		LDB ,S		* SO NOT PORTABLE.
++		LSRB		* HALF THE COLUMN NUMBER IS HOW MANY
++		LEAY B,Y	* WE HAVE TO MOVE FORWARD IN THIS MODE
++		PULS B		* GET COLUMN NUMBER AGAIN
++		ANDB #$01
++		LSLB
++		LSLB		* IF ODD, BIT DISPLACEMENT IS 4
++DONOTHING	RTS
++
++* SET PRINT PARAMETERS RAM HOOK
++CACHAVEC2	BSR TSTHIRES
++		LBNE DVEC2
++		TST DEVNUM
++		LBNE DVEC2
++		LEAS 2,S
++GETPARMS	PSHS D
++		CLR PRTDEV
++		LDA CURX
++		STA DEVPOS
++		TST TEXTMODE
++		BNE PARMS64
++		LDA #51
++		STA DEVWID
++		LDD #$1020
++		STD DEVCFW
++		PULS D,PC
++PARMS64		LDA #64
++		STA DEVWID
++		LDD #$1030
++		STD DEVCFW
++		PULS D,PC
++
++* OUTPUT ASCII CHARACTER
++* INPUT:   ACCA = ASCII CHARACTER
++* OUTPUT:  NONE
++* TRASHES: NONE
++
++ISHIRES		LEAS 2,S
++CHAROUT		PSHS D,X,Y
++		CMPA #$0D
++		BEQ OUTEOL
++		CMPA #$0A
++		BEQ OUTLF
++		CMPA #$08
++		BEQ OUTBS
++		LDB CURX
++		LDA CURY
++		BSR GETMEMPOSXY
++		LDA ,S
++		BSR PUTCHAR
++UPDATECURSOR	LDA CURX
++		INCA
++		CMPA DEVWID
++		BHS OUTEOL
++		STA CURX
++CHAROUTEND	PULS D,X,Y,PC
++OUTBS		LDB CURX
++		TSTB
++		BEQ CHAROUTEND
++		DECB
++		STB CURX
++		LDA CURY
++		LBSR GETMEMPOSXY
++		LDA #$20
++		BSR PUTCHAR
++		PULS D,X,Y,PC
++OUTEOL		CLR CURX
++OUTLF		LDA CURY
++		INCA
++		CMPA #24
++		BHS DOSCROLL
++		STA CURY
++		PULS D,X,Y,PC
++DOSCROLL	LBSR SCROLLUP
++		PULS D,X,Y,PC
++
++* OUTPUT AN ASCIIZ STRING POINTED BY X
++* (TRASHES: ACCA, X)
++
++PRINTSTR	LDA ,X+
++		TSTA
++		BEQ ASCIIZEND
++		BSR CHAROUT
++		BRA PRINTSTR
++ASCIIZEND	RTS
++
++* APPLY ASCII CHARACTER TO SCREEN MEMORY
++* INPUT:   ACCA = ASCII CHARACTER
++*          Y    = MEMORY LOCATION
++*          ACCB = BIT DISPLACEMENT (0-7)
++* OUTPUT:  NONE
++* TRASHES: ACCD, X
++
++OUTARANGE	CLRA
++		BRA PROCEED
++PUTCHAR		PSHS D
++		SUBA #32
++		CMPA #224
++		BHS OUTARANGE
++PROCEED		EXG A,B
++		CLRA
++		LSLB
++		ROLA
++		LSLB
++		ROLA
++		ANDB #$F8
++		LDX FONTLOCATION
++		LEAX D,X
++		PULS D
++		ANDA #1
++		BNE RENDERCHARODD	* BLEED INTO RENDERCHAR
++
++* APPLY A CHARACTER CELL TO A MEMORY LOCATION
++* INPUT:   X    = CHARACTER CELL (HIGH NIBBLES)
++*          Y    = MEMORY LOCATION
++*          ACCB = BIT DISPLACEMENT (0-7)
++* OUTPUT:  NONE
++* TRASHES: ACCA, X
++
++RENDERCHAR	LDA #8
++		PSHS D,Y
++LOOPCHAR	LDA ,X+
++		LDB 1,S
++		PSHS X
++		ANDA #$F0
++		BSR APPLYNIBBLE
++		PULS X
++		LEAY 32,Y	* BYTES PER SCANLINE
++		DEC ,S
++		BNE LOOPCHAR
++		PULS D,Y,PC
++
++* APPLY A CHARACTER CELL TO A MEMORY LOCATION
++* INPUT:   X    = CHARACTER CELL (LOW NIBBLES)
++*          Y    = MEMORY LOCATION
++*          ACCB = BIT DISPLACEMENT (0-7)
++* OUTPUT:  NONE
++* TRASHES: ACCA, X
++
++RENDERCHARODD	LDA #8
++		PSHS D,Y
++LOOPCHARODD	LDA ,X+
++		LSLA
++		LSLA
++		LSLA
++		LSLA
++		LDB 1,S
++		PSHS X
++		BSR APPLYNIBBLE
++		PULS X
++		LEAY 32,Y	* BYTES PER SCANLINE
++		DEC ,S
++		BNE LOOPCHARODD
++		PULS D,Y,PC
++
++* APPLY A NIBBLE TO A MEMORY LOCATION
++* INPUT:   ACCA = NIBBLE (USES THE HIGH ONE)
++*                 LOW 4 BITS MUST BE ALREADY ZEROED OUT
++*          Y    = MEMORY LOCATION
++*          ACCB = BIT DISPLACEMENT (0-7)
++* OUTPUT:  NONE
++* TRASHES: ACCD, X
++
++APPLYNIBBLE	TST TEXTMODE
++		BEQ APPLYNIBBLE51
++
++		TST REVERSE
++		BNE FLIPNIBBLE
++APPLYNIBBLE64	TSTB
++		BNE RIGHTNIBBLE64
++		LDB ,Y
++		ANDB #$0F
++		PSHS B
++		ORA ,S+
++		STA ,Y
++		RTS
++RIGHTNIBBLE64	LSRA
++		LSRA
++		LSRA
++		LSRA
++		LDB ,Y
++		ANDB #$F0
++		PSHS B
++		ORA ,S+
++		STA ,Y
++		RTS
++FLIPNIBBLE	COMA
++		ANDA #$F0
++		BRA APPLYNIBBLE64
++
++APPLYNIBBLE51	CMPB #3
++		BHI NASTY
++		TSTB
++		BEQ SIMPLE
++
++MEDIUM		PSHS B		* STACK HAS 1: DISP
++		SHRABYB
++		PSHS A		* STACK HAS 2: SHIFTED NIBBLE, DISP
++		LDA #$F8
++		LDB 1,S
++		SHRABYB
++		PULS B		* ACCB HAS SHIFTED NIBBLE, STACK HAS 1: DISP
++		EXG A,B		* CORRECT REGS FOR APPLYBITS
++		LEAS 1,S	* DISCARD STACK
++APPLYBITS	TST REVERSE
++		BEQ NOREVM	* APPLY COMPLEMENT IF IN REVERSE MODE
++		COMA
++NOREVM		PSHS B		* APPLY BITS OF ACCA TO MEMORY POINTED BY Y,
++		ANDA ,S+	* WITH MASK IN ACCB
++		COMB
++		ANDB ,Y
++		PSHS B
++		ORA ,S+
++		STA ,Y
++		RTS
++
++NASTY		PSHS D		* STACK HAS 2: NIBBLE,DISPL
++		LDX #$F800
++		SHRXBYB
++		PSHS X		* STACK HAS 4: 16BMASK,NIBBLE,DISP
++		LDX 2,S
++		LDB 3,S
++		SHRXBYB		* X HAS SHIFTED NIBBLE
++		PULS D		* D HAS 16BMASK, STACK HAS 2: NIBBLE,DISP
++		EXG D,X		* CORRECT REGS FOR APPLYBITSD
++		LEAS 2,S	* DISCARD STACK
++		TST REVERSE
++		BEQ NOREVN	* APPLY COMPLEMENT IF IN REVERSE MODE
++		COMA
++		COMB
++NOREVN		PSHS X		* APPLYBITSD: APPLY BITS OF ACCD TO
++		ANDA ,S		* MEMORY POINTED BY Y, WITH MASK IN X
++		ANDB 1,S
++		PSHS D
++		LDD 2,S
++		COMA
++		COMB
++		ANDA ,Y
++		ANDB 1,Y
++		ORA ,S
++		ORB 1,S
++		STD ,Y
++		PULS D,X,PC
++
++SIMPLE		LDB #$F8
++		BRA APPLYBITS
++
++* SCROLL SCREEN UP ONE LINE
++* (A 6309 WOULD MAKE THIS WAAAAY FASTER)
++SCROLLUP	PSHS D,X,Y
++		LDY BEGGRP
++		LEAX $1800,Y
++		PSHS X
++		LEAX 256,Y
++SCRLOOP		LDD ,X++	* MOVE 4 WORDS AT A TIME TO DO
++		STD ,Y++	* LESS BRANCHES (~15% FASTER)
++		LDD ,X++
++		STD ,Y++
++		LDD ,X++
++		STD ,Y++
++		LDD ,X++
++		STD ,Y++
++		CMPX ,S
++		BLO SCRLOOP
++		LDA REVERSE	* FILL LAST LINE WITH $FF IF
++		TFR A,B		* REVERSE OR 0 IF NORMAL
++		TFR Y,X		* USE THE BETTER INDEX REGISTER
++		TFR D,Y
++CLRLASTLOOP	STD ,X++
++		STY ,X++
++		CMPX ,S
++		BLO CLRLASTLOOP
++		LEAS 2,S
++		PULS D,X,Y,PC
++
++* CONSOLE IN RAM HOOK
++CACHAVEC4	LDA DEVNUM
++		LBNE NOFLEXKY
++		LBSR TSTHIRES
++		LBNE YESFLEXKY
++		LEAS 2,S
++		PSHS B,X,Y
++		LDA CURSORENABLE
++		CMPA #1
++		BEQ FIXEDCURSOR
++		LDX #$1
++		LDB #$20
++WAITFORKEY	JSR [POLCAT]
++		BNE GOTACHAR
++		LDA CURSORENABLE
++		CMPA #2
++		BNE WAITFORKEY
++		LEAX -1,X
++		BNE WAITFORKEY
++		LDX CURSORDELAY
++		NEGB
++		ADDB CURSORCHAR
++		ADDB #$20		* MOVE TO ALTERNATING CHAR
++		BSR PAINTCHAR
++		BRA WAITFORKEY
++GOTACHAR	CMPA #$0C		* CLEAR?
++		BNE NOCLEARKEY
++		TST CLEARKEYCLEARS	* ARE WE WITHIN A LINE INPUT?
++		BEQ NOCLEARKEY
++		BSR CCCLS
++		CLR CLEARKEYCLEARS	* NEXT CLEAR WON'T CLEAR
++		LDA #08			* CHAR = BS AND CHAR COUNT = -1
++		LDB #1			* WILL FORCE A LINE INPUT RESTART
++		STB ,S
++NOCLEARKEY	PSHS A
++		CMPB #$20
++		BEQ NONEEDTOWIPE
++		LDB #$20
++		BSR PAINTCHAR		* PAINT SPACE
++NONEEDTOWIPE	CLR CINBFL		* CLEAR CONSOLE IN BUFFER EMPTY FLAG
++		PULS A,B,X,Y,PC
++
++FIXEDCURSOR	LDB CURSORCHAR
++		BSR PAINTCHAR
++		BRA WAITFORKEY
++
++* LINE INPUT RAM HOOK
++CACHAVEC12	LBSR TSTHIRES
++		BNE GOOLDRVEC12
++		TST DEVNUM
++		BNE GOOLDRVEC12
++		PSHS A
++		LDA #1
++		STA CLEARKEYCLEARS
++		PULS A
++GOOLDRVEC12	JMP DVEC12
++
++* PAINT CHARACTER IN ACCB AT CURSOR POSITION, DON'T ADVANCE
++* TODO: GENERALIZE AND USE SAME ROUTINE CHAROUT USES
++PAINTCHAR	PSHS B,X
++		LDB CURX
++		LDA CURY
++		LBSR GETMEMPOSXY
++		LDA ,S
++		LBSR PUTCHAR
++		PULS B,X,PC
++
++GOOLDRVEC22	PULS X,CC
++		LBRA DVEC22
++
++* CLS RAM HOOK
++CACHAVEC22	PSHS X,CC		* CLS HOOK HAS TO PRESERVE FLAGS
++		LDX 3,S			* GET RETURN ADDRESS FROM STACK
++		CMPX #CLSRETN		* CHECK TO SEE IF IT'S THE CLS ROUTINE
++		BNE GOOLDRVEC22
++		LBSR TSTHIRES		* ARE WE IN "OUR" VIDEO MODE?
++		BNE GOOLDRVEC22
++		PULS X,CC		* RECOVER FLAGS
++		BEQ NOCLSARG		* ZF => NO ARGUMENTS
++		JSR LB70B		* PARSE INTEGER ARG
++NOCLSARG	LEAS 2,S		* DISCARD RET ADDR
++CCCLS		PSHS D,X,Y,U
++		LDY BEGGRP
++		LDA REVERSE		* FILL WITH EITHER FF OR 00
++		TFR A,B
++		TFR D,U
++		LDX #$600
++LOOPCLS		STD ,Y++
++		STU ,Y++
++		LEAX -1,X
++		BNE LOOPCLS
++		CLR CURX
++		CLR CURY
++		LDA 1,S
++		CMPA #51
++		BNE NOEE
++		LDX #EEMSG
++		LBSR PRINTSTR
++NOEE		PULS D,X,Y,U,PC
++
++* HANDLE PRINTER OUTPUT IF WE HAVE DRIVEWIRE
++		IFDEF DW
++
++PRINTEROUT	PULS B
++		LEAS 2,S
++		PSHS D,X,Y
++
++		CMPA #$0C
++		BEQ DOFLUSH
++
++		BSR LPTOUTCHAR
++		*CMPA #$0D
++		BRA DONTFLUSH
++		*BEQ DOFLUSH
++		*CMPA #$0A
++		*BEQ DOFLUSH
++		*CMPA #$0C
++		*BNE DONTFLUSH
++DOFLUSH		LDA #OP_PRINTFLUSH
++		STA VCMD
++		LDY #1
++		JSR SENDY
++DONTFLUSH	PULS D,X,Y,PC
++
++LPTOUTCHAR	LDX #VCMD
++		LDB #OP_PRINT
++		STB ,X+
++		STA ,X
++		LDY #2
++		PSHS A
++		JSR SENDY
++		PULS A
++		CMPA #$0D
++		BEQ PRINTEDCR
++		LDB LPTPOS
++		INCB
++		CMPB LPTWID
++		BLO INCWIDNORMAL
++		PSHS A
++		LDD #OP_PRINT*256+$0D
++		STD VCMD
++		LDY #2
++		JSR SENDY
++		PULS A
++PRINTEDCR	CLRB
++INCWIDNORMAL	STB LPTPOS
++		RTS
++
++		ENDC
++
++* EXPRESSION EVALUATION (15) AND ASCII-TO-FLOAT (19) RAM HOOKS FOR &B
++
++CACHAVEC15	LDA	4,S
++		BNE	NEWXVEC15
++		LDX	5,S
++		CMPX	#LAF9A
++		BNE	NEWXVEC15
++		LDX	2,S
++		CMPX	#LB166
++		BNE	NEWXVEC15
++		LDX	#LCEEC
++		STX	5,S
++NEWXVEC15	PULS	U
++		CLR	VALTYP
++		LDX	CHARAD
++		JSR	GETNCH
++		CMPA	#'&'
++		BEQ	DOAMPERSAND
++		JMP	L8852			NEW LABEL IN EXTBAS (NO CODE CHANGE)
++
++CACHAVEC19	CMPA	#'&'
++		BNE	NOAMPERSAND
++		LEAS	$02,S
++
++DOAMPERSAND	CLRA
++		CLRB
++		LDX	#FPA0
++		STD	,X
++		STD	2,X
++		JSR	GETNCH
++		CMPA	#'H
++		BEQ	AMPVALHEX
++		CMPA	#'B
++		BEQ	AMPVALBIN
++		CMPA	#'O
++		BEQ	AMPVALOCT
++		JSR	GETCCH
++		BRA	OCTAFTER1CHAR
++
++MULBYBASEANDADD	ASL	3,X
++		ROL	2,X
++		ROL	1,X
++		ROL	,X
++		LBCS	LBA92
++		DECB
++		BNE	MULBYBASEANDADD
++		SUBA	#'0
++		ADDA	3,X
++		STA	3,X
++NOAMPERSAND	RTS
++
++AMPOCTLOOP	CMPA	#'8
++		LBHS	LB277
++		LDB	#3
++		BSR	MULBYBASEANDADD
++AMPVALOCT	JSR	GETNCH
++OCTAFTER1CHAR	BLO	AMPOCTLOOP
++		BRA	GIVFPA032
++
++AMPBINLOOP	CMPA	#'1'
++		LBHI	LB277
++		ASL	3,X			ROTATE AND ADD DIGIT
++		ROL	2,X
++		ROL	1,X
++		ROL	,X
++		LBCS	LBA92			OVERFLOW
++		SUBA	#'0'
++		ADDA	3,X
++		STA	3,X
++AMPVALBIN	JSR	GETNCH
++		BLO	AMPBINLOOP
++		BRA	GIVFPA032
++
++GIVFPA032	CLR	VALTYP
++		CLR	FPSBYT
++		CLR	FP0SGN
++		LDB	#$A0
++		STB	FP0EXP
++		JMP	LBA1C
++
++AMPVALHEX	JSR	GETNCH
++		BLO	HEX9ORLOWER
++		JSR	LB3A2
++		BLO	GIVFPA032
++		CMPA	#'G
++		BCC	GIVFPA032
++		SUBA	#'A'-('9'+1)
++HEX9ORLOWER	LDB	#4
++		BSR	MULBYBASEANDADD
++		BRA	AMPVALHEX
++
++* CACHAVEC19	CMPA	#'&'
++* 		BNE	NOAMPERSAND
++* 		LEAS	2,S
++* DOAMPERSAND	CLR	FPA0+2
++* 		CLR	FPA0+3
++* 		LDX	#FPA0+2
++* 		JSR	GETNCH
++* 		CMPA	#'B'
++* 		BEQ	ISBINSTR
++* 		JMP	L87F4			NEW LABEL IN EXTBAS (NO CODE CHANGE)
++* BINLOOP		CMPA	#'1'
++* 		LBHI	LB277
++* 		ASL	1,X			ROTATE AND ADD DIGIT
++* 		ROL	,X
++* 		LBCS	LBA92			OVERFLOW
++* 		SUBA	#'0'
++* 		ADDA	1,X
++* 		STA	1,X
++* ISBINSTR	JSR	GETNCH
++* 		BLO	BINLOOP
++* 		JMP	L880E
++* NOAMPERSAND	RTS
++
++* ERROR HANDLING RAM HOOK 1 - STORE ERROR INFORMATION
++
++CACHAVEC16	STB	ERRNO
++		PSHS	D
++		LDD	CURLIN
++		STD	ERRLINE
++
++		LDX	CURLIN
++		LEAX	1,X
++		BEQ	NOONERRACTIVE
++		LDX	ONERRTARGET
++		BEQ	NOONERRACTIVE
++
++* WHY DOESN'T THIS WORK?
++
++		PULS	D
++		LEAS	2,S
++		CMPB	#3*2			OUT OF DATA ERROR?
++		BNE	NORESTOREINPPTR
++		LDD	BINVAL
++		STD	CHARAD
++NORESTOREINPPTR STX	BINVAL
++		JMP	LAEA4+5
++
++
++NOONERRACTIVE	PULS	D,PC
++
++* RUN RAM HOOK - CLEAR ERROR INFORMATION
++
++CACHAVEC18	PSHS	D
++		CLRA
++		CLRB
++		STD	ERRLINE
++		STD	ONERRSTMT
++		STD	ONERRTARGET
++		DECA
++		STA	ERRNO
++		PULS	D
++		JMP	DVEC18
++
++* THE "FONT", SUCH AS IT IS. DRAWN ON NOTEPAD FROM SWEET, SWEET
++* MEMORIES OF SUPER COLOR WRITER. NO, REALLY. NOT KIDDING. HONEST.
++
++		INCLUDE font51.asm
++		INCLUDE font64.asm
++
++* CACHARS-AWARE DIRECTORY COLUMN COUNT
++
++SETSIZ         lda       <$E7                Get screen mode
++		suba      #2                  WIDTH 80?
++		beq       COL5                Yes, do 5 columns
++
++* Otherwise, do columns based on DEVWID
++
++		lda DEVWID
++		lsra
++		lsra
++		lsra
++		lsra
++		fcb SKIP2			Skip lda #5
++COL5           lda       #5                  Five columns
++SETDIRCOLS     sta       DIR1                Store in temp RAM
++		jmp NEWCOL
++
++
++* DISK BASIC COMMAND DICTIONARY TABLE
++* TOKEN #
++ELC192         fcs       'DIR'               CE
++		fcs       'DRIVE'             CF
++		fcs       'FIELD'             D0
++		fcs       'FILES'             D1
++		fcs       'KILL'              D2
++		fcs       'LOAD'              D3
++		fcs       'LSET'              D4
++		fcs       'MERGE'             D5
++		fcs       'RENAME'            D6
++		fcs       'RSET'              D7
++		fcs       'SAVE'              D8
++		fcs       'WRITE'             D9
++		fcs       'VERIFY'            DA
++		fcs       'UNLOAD'            DB
++		fcs       'DSKINI'            DC
++		fcs       'BACKUP'            DD
++		fcs       'COPY'              DE
++		fcs       'DSKI$'             DF
++		fcs       'DSKO$'             E0
++		fcs       'DOS'               E1
++		fcs       'WIDTH'             E2
++		fcs       'PALETTE'           E3
++		fcs       'HSCREEN'           E4
++		fcs       'LPOKE'             E5
++		fcs       'HCLS'              E6
++		fcs       'HCOLOR'            E7
++		fcs       'HPAINT'            E8
++		fcs       'HCIRCLE'           E9
++		fcs       'HLINE'             EA
++		fcs       'HGET'              EB
++		fcs       'HPUT'              EC
++		fcs       'HBUFF'             ED
++		fcs       'HPRINT'            EE
++		fcs       'ERR'               EF
++		fcs       'BRK'               F0
++		fcs       'LOCATE'            F1
++		fcs       'HSTAT'             F2
++		fcs       'HSET'              F3
++		fcs       'HRESET'            F4
++		fcs       'HDRAW'             F5
++		fcs       'CMP'               F6
++		fcs       'RGB'               F7
++		fcs       'ATTR'              F8
++* DISK BASIC COMMAND JUMP TABLE
++* COMMAND / TOKEN #
++ELC1F1         fdb       DIR                 DIR / CE
++		fdb       DRIVE               DRIVE / CF
++		fdb       FIELD               FIELD / D0
++		fdb       FILES               FILES / D1
++		fdb       KILL                KILL / D2
++		fdb       LOAD                LOAD / D3
++		fdb       LSET                LSET / D4
++		fdb       MERGE               MERGE / D5
++		fdb       RENAME              RENAME / D6
++		fdb       RSET                RSET / D7
++		fdb       SAVE                SAVE / D8
++		fdb       WRITE               WRITE / D9
++		fdb       VERIFY              VERIFY / DA
++		fdb       UNLOAD              UNLOAD / DB
++		fdb       DSKINI              DSKINI /DC
++		fdb       BACKUP              BACKUP / DD
++		fdb       COPY                COPY / DE
++		fdb       DSKI                DSKI$ / DF
++		fdb       DSKO                DSKO$ / E0
++		fdb       DOS                 DOS / E1
++		fdb       WIDTH               WIDTH / E2
++		fdb       PALETTE             PALETTE / E3
++		fdb       HSCREEN             HSCREEN / E4
++		fdb       LPOKE               LPOKE / E5
++		fdb       HCLS                HCLS / E6
++		fdb       HCOLOR              HCOLOR / E7
++		fdb       HPAINT              HPAINT / E8
++		fdb       HCIRCLE             HCIRCLE / E9
++		fdb       HLINE               HLINE / EA
++		fdb       HGET                HGET / EB
++		fdb       HPUT                HPUT / EC
++		fdb       HBUFF               HBUFF / ED
++		fdb       HPRINT              HPRINT / EE
++		fdb       ERRCMD              ERR / EF
++		fdb       BRK                 BRK / F0
++		fdb       LOCATE              LOCATE / F1
++		fdb       HSTAT               HSTAT / F2
++		fdb       HSET                HSET / F3
++		fdb       HRESET              HRESET / F4
++		fdb       HDRAW               HDRAW / F5
++		fdb       CMP                 CMP / F6
++		fdb       RGB                 RGB / F7
++		fdb       ATTR                ATTR / F8
++* SECONDARY FUNCTION DICTIONARY TABLE
++* TOKEN #
++ELC219         fcs       'CVN'               A2
++		fcs       'FREE'              A3
++		fcs       'LOC'               A4
++		fcs       'LOF'               A5
++		fcs       'MKN$'              A6
++		fcs       'AS'                A7
++		fcs       'LPEEK'             A8
++		fcs       'BUTTON'            A9
++		fcs       'HPOINT'            AA
++		fcs       'ERNO'              AB
++		fcs       'ERLIN'             AC
++* DISK BASIC SECONDARY FUNCTION JUMP TABLE
++* FUNCTION / TOKEN #
++ELC22C         fdb       CVN                 CVN / A2
++		fdb       FREE                FREE / A3
++		fdb       LOC                 LOC / A4
++		fdb       LOF                 LOF / A5
++		fdb       MKN                 MKN$ / A6
++		fdb       LB277               AS / A7
++		fdb       LPEEK               LPEEK / A8
++		fdb       BUTTON              BUTTON / A9
++		fdb       HPOINT              HPOINT / AA
++		fdb       ERNO                ERNO / AB
++		fdb       ERLIN               ERLIN / AC
++
++*WIDTH		EQU	LB44A
++PALETTE		EQU	LB44A
++HSCREEN		EQU	LB44A
++LPOKE		EQU	LB44A
++HCLS		EQU	LB44A
++HCOLOR		EQU	LB44A
++HPAINT		EQU	LB44A
++HCIRCLE		EQU	LB44A
++HLINE		EQU	LB44A
++HGET		EQU	LB44A
++HPUT		EQU	LB44A
++HBUFF		EQU	LB44A
++HPRINT		EQU	LB44A
++ERRCMD		EQU	LB44A
++BRK		EQU	LB44A
++*LOCATE		EQU	LB44A
++HSTAT		EQU	LB44A
++*HSET		EQU	LB44A
++*HRESET		EQU	LB44A
++HDRAW		EQU	LB44A
++CMP		EQU	LB44A
++RGB		EQU	LB44A
++ATTR		EQU	LB44A
++LPEEK		EQU	LB44A
++*BUTTON		EQU	LB44A
++*HPOINT		EQU	LB44A
++*ERNO		EQU	LB44A
++*ERLIN		EQU	LB44A
++
++EDHITOK         equ       $F8                 HIGHEST 1.1 DISK TOKEN
++EDHISTOK        equ       $AC                 HIGHEST 1.1 DISK SECONDARY TOKEN
++
++*DISK BASIC COMMAND INTERPRETATION HANDLER
++ELC238         cmpa      #EDHITOK            *COMPARE TO HIGHEST DISK BASIC TOKEN
++		bhi       ELC244              *AND BRANCH IF HIGHER
++		ldx       #ELC1F1             POINT X TO DISK BASIC COMMAND JUMP TABLE
++		suba      #$CE                SUBTRACT OUT LOWEST DISK BASIC COMMAND TOKEN
++		jmp       >LADD4              JUMP TO BASIC'S COMMAND HANDLER
++ELC244         cmpa      #DHITOK             COMPARE TO HIGHEST DISK BASIC TOKEN
++		lbls      LB277               'SYNTAX' ERROR IF < DISK BASIC COMMAND TOKEN
++		jmp       [COMVEC+33]         PROCESS A USER COMMAND TOKEN
++*DISK BASIC SECONDARY COMMAND INTERPRETATION HANDLER
++ELC24E         cmpb      #(EDHISTOK-$80)*2   *COMPARE MODIFIED SECONDARY TOKEN TO
++		bls       ELC256              *HIGHEST DISK BASIC TOKEN & BRANCH IF HIGHER
++		jmp       [COMVEC+38]         JUMP TO USER SECONDARY COMMAND HANDLER
++ELC256         subb      #($A2-$80)*2        *SUBTRACT OUT THE SMALLEST SECONDARY
++		pshs      B                   *DISK TOKEN & SAVE MODIFIED TOKEN ON THE STACK
++		jsr       >LB262              SYNTAX CHECK FOR '(' AND EVALUATE EXPRESSION
++		puls      B                   RESTORE MODIFIED TOKEN
++		ldx       #ELC22C             POINT X TO SECONDARY COMMAND JUMP TABLE
++		jmp       >LB2CE              JUMP TO BASIC'S SECONDARY COMMAND HANDLER
++* DISK BASIC COMMAND INTERP TABLES
++ELC109         fcb       43                  20 DISK BASIC 1.1 COMMANDS
++		fdb       ELC192               DISK BASIC'S COMMAND DICTIONARY
++		fdb       ELC238               COMMAND JUMP TABLE
++		fcb       11                  6 DISK BASIC SECONDARY FUNCTIONS
++		fdb       ELC219               SECONDARY FUNCTION TABLE
++		fdb       ELC24E               SECONDARY FUNCTION JUMP TABLE
++
++JCMDS          ldx       #ELC109             POINT X TO ROM IMAGE OF COMMAND INTERPRETATION TABLE
++		IFDEF     DRAGON
++		ldu       #COMVEC+10          POINT U TO RAM ADDRESS OF SAME (STUB1 ON DRAGON)
++		ELSE
++		ldu       #COMVEC+20          POINT U TO RAM ADDRESS OF SAME (STUB2 ON COCO)
++		ENDC
++		ldb       #10                 10 BYTES PER TABLE
++		jmp       >LA59A              MOVE (B) BYTES FROM (X) TO (U)
++
++WIDTH		BEQ	LOCATE		* SN ERROR IF NO ARG
++		JSR	LB70B		* GET 8-BIT ARG
++		CMPB	#51
++		BEQ	WIDTH51
++		CMPB	#64
++		BEQ	WIDTH64
++		CMPB	#32
++		BNE	GOFCERR
++		CLRB
++DOSCREEN	JMP	L95AA
++WIDTH51		JSR	SET51COLS
++DOSCREEN1	LDB	#1
++		BRA	DOSCREEN
++WIDTH64		JSR	SET64COLS
++		BRA	DOSCREEN1
++
++XLIMIT		JSR	TSTHIRES
++		BNE	XTEXT
++		LDA	#51
++		TST	TEXTMODE
++		BEQ	XLIMITIS51
++		LDA	#64
++XLIMITIS51	LDB	#24
++		RTS
++XTEXT		LDD	#$2010
++		RTS
++
++HSET		CMPA	#$C1		IS NEXT TOKEN 'COLOR'?
++		BEQ	HSETCOLOR
++		BSR	CHKMEMTOK
++		BNE	HSETMEMSOME
++		STA     ROMSET
++		RTS
++HSETMEMSOME	CMPA	#$DE		IS NEXT TOKEN 'COPY'?
++		BNE	GOSNERR
++		JSR	GETNCH
++		JMP	DOROMRAM
++HSETCOLOR	JSR	GETNCH
++		JSR	LB70B
++		CMPB	#1
++		BHI	GOFCERR
++		LSLB
++		LSLB
++		LSLB
++		STB	ALTCOLOR
++		RTS
++
++HRESET		BSR	CHKMEMTOK
++		STA	ROMCLR
++		RTS
++
++GOFCERR		JMP	>LB44A
++
++LOCATE		BEQ	GOSNERR
++		BSR	XLIMIT
++		PSHS	D
++		JSR	LB70B
++		CMPB	,S
++		BHS	GOFCERR
++		PSHS	B
++		JSR	GETCCH
++		BEQ	GOSNERR
++		JSR	LB738
++		CMPB	2,S
++		BHS	GOFCERR
++		PULS	A
++		TFR	D,X
++		PULS	D
++		CMPB	#$10
++		BEQ	LOCATETEXT
++		STX	CURX
++		RTS
++LOCATETEXT	TFR	X,D
++		LDX	#VIDRAM
++		LEAX	A,X
++		CLRA
++		LSLB
++		LSLB
++		LSLB
++		LSLB
++		LSLB
++		ROLA
++		LEAX	D,X
++		STX	CURPOS
++		RTS
++
++GOSNERR		JMP	>LB277
++
++CHKMEMTOK	CMPA	#$FF		CHECK FOR 'MEM' SEC TOKEN
++		BNE	GOSNERR
++		JSR	GETNCH
++		CMPA	#$93
++		BNE	GOSNERR
++		JMP	GETNCH
++
++HPOINT		JSR	INTCNV		FETCH NUMERIC ARG
++		BNE	HPOINTNOT00
++		CLRA			HPOINT(0) - CPU MODEL (6809 OR 6309)
++		TFR	A,X
++		CMPX	#0
++		BEQ	IS6309
++		LDD	#6809
++		BRA	GOGIVABF
++IS6309		LDD	#6309
++		BRA	GOGIVABF
++HPOINTNOT00	CMPD	#1
++		BNE	HPOINTNOT01
++		BSR	TSTNM		HPOINT(1) - 1 IF IN 6309 NATIVE MODE
++		CLRB
++		EXG	A,B
++		BRA	GOGIVABF
++HPOINTNOT01	CMPD	#2
++		BNE	HPOINTNOT02
++		LDA	#1		HPOINT(2) - 1 IF BASIC IS RUNNING FROM RAM
++		STA	NOTSOIMM+1	SELF-MODIFYING CODE, OH NO, THE HORROR, THE HORROR
++NOTSOIMM	LDB	#0
++		CLRA
++		BRA	GOGIVABF
++HPOINTNOT02	CMPD	#3
++		BNE	HPONITNOT03
++USR8FUNC	LDD	#DATAAREA16	HPOINT(3) - HDB-DOS/16K VARIABLE AREA ADDRESS
++		BRA	GOGIVABF
++HPONITNOT03	CMPD	#4
++		LBNE	GOFCERR
++		CLRA			HPOINT(4) - TIMER IRQ FREQUENCY
++		LDB	TICKSPERSEC
++		BRA	GOGIVABF
++
++JOYBUTMASK	FCB	1,4,2,8
++BUTTON		JSR	INTCNV
++		ANDB	#3
++		LDX	#PIA0
++		LDA	#$FF
++		STA	2,X
++		LDA	,X
++		LDX	#JOYBUTMASK
++		ANDA	B,X
++		BEQ	YESBUTTON
++		CLRB
++		CLRA
++GOGIVABF	JMP	GIVABF
++YESBUTTON	LDB	#1
++		BRA	GOGIVABF
++
++TSTNM		CLRA			NO PATCHES FOR NATIVE MODE YET. ALSO,
++		RTS			NOT SO SURE ABOUT NM DETECT CODE I FOUND
++
++* PATCH TO RECUPERATE ALTERNATIVE "DRV:FILENAME.EXT" SYNTAX
++
++BYEPATCH@	JMP	LC96A
++CHKDRVBEFORE	LEAU	,X		POINT U TO START OF STRING
++		LDA	,X
++		CMPA	#'0
++		BLO	BYEPATCH@
++		CMPA	#'9
++		BHI	BYEPATCH@
++		LDA	1,X
++		CMPA	#':
++		BEQ	CANHAZDRIVENUM
++		CMPA	#'0
++		BLO	BYEPATCH@
++		CMPA	#'9
++		BHI	BYEPATCH@
++		LDA	2,X
++		CMPA	#':
++		BEQ	CANHAZDRIVENUM
++		CMPA	#'0
++		BLO	BYEPATCH@
++		CMPA	#'9
++		BHI	BYEPATCH@
++		LDA	3,X
++		CMPA	#':
++		BNE	BYEPATCH@
++CANHAZDRIVENUM	LBSR	LC99D
++		BRA	BYEPATCH@
++
++* MOVE ROM TO RAM
++
++ROMRAM          PSHS    D,X,Y,CC
++		LDX     #8000
++		ORCC    #IntMasks
++ROMRAMLOOP      STA     ROMCLR
++		LDD     ,X
++		LDY     2,X
++		STA     ROMSET
++		STD     ,X++
++		STY     ,X++
++		CMPX    #$FF00
++		BNE     ROMRAMLOOP
++		PULS    D,X,Y,CC,PC
++LENROMRAMCODE   EQU     *-ROMRAM
++
++MEMCPY          LDX     ,Y++
++		STX     ,U++
++		SUBD    #2
++		BHS     MEMCPY
++		RTS
++
++DOROMRAM        LDY     #ROMRAM
++		LDU     #CASBUF
++		LDD     #LENROMRAMCODE
++		BSR     MEMCPY
++		JMP     CASBUF
++
++* INCREMENT TIMER TAKING INTO ACCOUNT MSW; PROCEED WITH EXTBAS IRQ
++
++EXTTIMERINC	LDD	TIMVAL
++		ADDD	#1
++		STD	TIMVAL
++		LDD	TIMVALMSW
++		ADCB	#0
++		ADCA	#0
++		STD	TIMVALMSW
++		JMP	>L9C3E		JUMP TO EXTENDED BASIC'S IRQ HANDLER
++
++* ARGUMENT-LESS SECONDARY TOKEN HANDLERS
++
++* GET ERROR NUMBER
++
++ERNO		LDB	ERRNO		ERROR NUMBER IS STORED AS INDEX INTO 2-CHAR CODE
++		CMPB	#$FF
++		BEQ	NOERNO
++		LSRB			(I.E. DOUBLED)
++		CLRA
++GOGIVABF2	JMP	GIVABF
++NOERNO		SEX
++		BRA	GOGIVABF2
++
++* GET ERROR LINE
++
++ERLIN		LDD	ERRLINE
++		BRA	GOGIVABF2
++
++* 16K VERSION OF TIMER FUNCTION CHECKS FOR 'L' - CALLED BY ALTERED DXIVEC
++
++TIMERL		LDX	CHARAD
++		LDA	,X
++		CMPA	#'L
++		LBNE	TIMER
++		JSR	GETNCH		GET PAST THE L
++		PSHS	CC
++		ORCC	#IntMasks
++		LDX	TIMVAL
++		LDD	TIMVALMSW
++		PULS	CC
++GIVABXF		CLR	VALTYP		RETURN 32-BIT VALUE IN D:X AS NUMERIC
++		STD	FPA0
++		STX	FPA0+2
++		LDB	#$A0
++		STB	FP0EXP
++		CLRA
++		STA	FPSBYT
++		STA	FP0SGN
++		JMP	LBA1C
++
++* ALTERED SECONDARY TOKEN (AKA FUNCTION) HANDLERS
++
++DXIVEC16K	CMPB	#($9F-$80)*2	MODIFIED TOKEN FOR TIMER
++		BEQ	TIMERL
++		* CMPB	#($9C-$80)*2	MODIFIED TOKEN FOR HEX$
++		* BEQ	HEXDOLBIG
++		CMPB	#($AB-$80)*2	MODIFIED TOKEN FOR ERNO
++		BEQ	ERNO
++		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERLIN
++		BEQ	ERLIN
++		JMP	L8168		IF NOT ONE OF OUR FUNCTIONS, GO TO EXBAS HANDLER
++
++* ALTERED COMMAND HANDLERS
++
++DXCVEC16K	CMPA	#$FF		SECONDARY COMMAND?
++		LBNE	L813C
++		JSR	GETNCH
++		CMPA	#$9F		TIMER TOKEN?
++		LBNE	L8154+2		NO, DEFER TO ECB DXCVEC
++
++* 16K VERSION OF TIMER STATEMENT CHECKS FOR 'L' - CALLED BY ALTERED DXCVEC
++
++		JSR	GETNCH		TIMER STATEMENT HANDLER
++		CMPA	#'L		CHECK FOR TIMERL
++		LBNE	L8960+2		IF NO, JUST DEFER TO ECB
++		JSR	GETNCH		GET PAST EQUAL SIGN JUST LIKE ECB DOES
++
++		LDB	#$B3		TOKEN FOR =
++		JSR	LB26F		DO A SYNTAX CHECK FOR =
++		BSR	GET32BITARG	PARSE 32-BIT ARG, RETURN IN D:X
++		PSHS	CC
++		ORCC	#IntMasks
++		STX	TIMVAL
++		STD	TIMVALMSW
++		PULS	CC,PC
++
++GET32BITARG	JSR	LB141		EVALUATE NUMERIC EXPRESSION
++GETABXFROMFPA0	LDA	FP0SGN		GET SIGN OF FPA0 MANTISSA
++		LBMI	LB706		'ILLEGAL FUNCTION CALL' IF NEGATIVE
++		LDA	FP0EXP		GET EXPONENT OF FPA0
++		CMPA	#$A0		COMPARE TO LARGEST UNSIGNED 32-BIT INTEGER
++		LBHI	LB706		'ILLEGAL FUNCTION CALL' IF TOO LARGE
++		BEQ	BIGGERTHAN2G	LARGER THAN 7FFFFFFF - TREAT SPECIALLY
++		JSR	LBCC8		SHIFT BINARY POINT TO EXTREME RIGHT OF FPA0
++		LDD	FPA0
++GETLSW32BITS	LDX	FPA0+2		D:X CONTAINS 32-BIT NUMBER
++		RTS
++BIGGERTHAN2G	LDD	FPA0
++		ORA	#$80
++		BRA	GETLSW32BITS
++
++* 16K VERSION OF HEX$ HANDLES 32-BIT NUMBERS
++
++HEXDOLBIG	JSR	LB262
++		BSR	GETABXFROMFPA0
++		LDX	#STRBUF+2
++		LDB	#8
++HEXIZENIBBLE	PSHS	B
++		CLRB
++		LDA	#4
++SHLFPA04BITS	ASL	FPA0+3
++		ROL	FPA0+2
++		ROL	FPA0+1
++		ROL	FPA0
++		ROLB
++		DECA
++		BNE	SHLFPA04BITS
++		TSTB
++		BNE	DOCONVERTNIBBLE
++		LDA	,S
++		DECA
++		BEQ	DOCONVERTNIBBLE
++		CMPX	#STRBUF+2
++		BEQ	SKIPLEADINGZERO
++DOCONVERTNIBBLE	ADDB	#'0'
++		CMPB	#'9'
++		BLS	HEX0TO9
++		ADDB	#'A'-('9'+1)
++HEX0TO9		STB	,X+
++		CLR	,X
++SKIPLEADINGZERO	PULS	B
++		DECB
++		BNE	HEXIZENIBBLE
++		LEAS	2,S
++		LDX	#STRBUF+1
++		JMP	LB518
+diff --git a/hdbdos/font51.asm b/hdbdos/font51.asm
+new file mode 100644
+index 0000000..56ec075
+--- /dev/null
++++ b/hdbdos/font51.asm
+@@ -0,0 +1,1007 @@
++CHARSET51	FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++		FCB %00000100
++		FCB %00000000
++
++		FCB %01010110
++		FCB %01010110
++		FCB %10101111
++		FCB %00000110
++		FCB %00001111
++		FCB %00000110
++		FCB %00000110
++		FCB %00000000
++
++		FCB %01101100
++		FCB %01111101
++		FCB %10000010
++		FCB %01100100
++		FCB %00011000
++		FCB %11101011
++		FCB %01100011
++		FCB %00000000
++
++		FCB %01000010
++		FCB %10100010
++		FCB %10100100
++		FCB %01000000
++		FCB %10110000
++		FCB %10100000
++		FCB %01010000
++		FCB %00000000
++
++		FCB %00011000
++		FCB %00100100
++		FCB %01000010
++		FCB %01000010
++		FCB %01000010
++		FCB %00100100
++		FCB %00011000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %10010100
++		FCB %01100100
++		FCB %11111110
++		FCB %01100100
++		FCB %10010100
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00001111
++		FCB %01100000
++		FCB %01100000
++		FCB %00100000
++		FCB %01000000
++
++		FCB %00000000
++		FCB %00000001
++		FCB %00000010
++		FCB %00000100
++		FCB %00001000
++		FCB %01101000
++		FCB %01100000
++		FCB %00000000
++
++		FCB %01100010
++		FCB %10010110
++		FCB %10111010
++		FCB %11010010
++		FCB %10010010
++		FCB %10010010
++		FCB %01101111
++		FCB %00000000
++
++		FCB %01100110
++		FCB %10011001
++		FCB %00010001
++		FCB %00100010
++		FCB %01000001
++		FCB %10001001
++		FCB %11110110
++		FCB %00000000
++
++		FCB %00011111
++		FCB %00111000
++		FCB %01011110
++		FCB %10010001
++		FCB %11110001
++		FCB %00011001
++		FCB %00010110
++		FCB %00000000
++
++		FCB %01111111
++		FCB %10001001
++		FCB %10000001
++		FCB %11100010
++		FCB %10010100
++		FCB %10011000
++		FCB %01101000
++		FCB %00000000
++
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %01100111
++		FCB %10010001
++		FCB %10010001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %00000000
++		FCB %01100110
++		FCB %01100110
++		FCB %00000000
++		FCB %01100110
++		FCB %01100110
++		FCB %00000010
++		FCB %00000100
++
++		FCB %00010000
++		FCB %00100000
++		FCB %01001111
++		FCB %10000000
++		FCB %01001111
++		FCB %00100000
++		FCB %00010000
++		FCB %00000000
++
++		FCB %10000110
++		FCB %01001001
++		FCB %00100001
++		FCB %00010010
++		FCB %00100100
++		FCB %01000000
++		FCB %10000100
++		FCB %00000000
++
++		FCB %01100110
++		FCB %10011001
++		FCB %10111001
++		FCB %10111111
++		FCB %10101001
++		FCB %10001001
++		FCB %01111001
++		FCB %00000000
++
++		FCB %11100110
++		FCB %10011001
++		FCB %10011000
++		FCB %11101000
++		FCB %10011000
++		FCB %10011001
++		FCB %11100110
++		FCB %00000000
++
++		FCB %11001111
++		FCB %10101000
++		FCB %10011000
++		FCB %10011110
++		FCB %10011000
++		FCB %10101000
++		FCB %11001111
++		FCB %00000000
++
++		FCB %11110111
++		FCB %10001000
++		FCB %10001000
++		FCB %11101011
++		FCB %10001001
++		FCB %10001001
++		FCB %10000111
++		FCB %00000000
++
++		FCB %10011110
++		FCB %10010100
++		FCB %10010100
++		FCB %11110100
++		FCB %10010100
++		FCB %10010100
++		FCB %10011110
++		FCB %00000000
++
++		FCB %00011001
++		FCB %00011010
++		FCB %00011100
++		FCB %00011100
++		FCB %10011010
++		FCB %10011001
++		FCB %01101001
++		FCB %00000000
++
++		FCB %10001001
++		FCB %10001111
++		FCB %10001111
++		FCB %10001001
++		FCB %10001001
++		FCB %10001001
++		FCB %11111001
++		FCB %00000000
++
++		FCB %10010110
++		FCB %11011001
++		FCB %11011001
++		FCB %10111001
++		FCB %10111001
++		FCB %10011001
++		FCB %10010110
++		FCB %00000000
++
++		FCB %11100110
++		FCB %10011001
++		FCB %10011001
++		FCB %11101001
++		FCB %10001101
++		FCB %10001010
++		FCB %10000101
++		FCB %00000000
++
++		FCB %11100111
++		FCB %10011000
++		FCB %10011000
++		FCB %11100110
++		FCB %11000001
++		FCB %10100001
++		FCB %10011110
++		FCB %00000000
++
++		FCB %11111001
++		FCB %01001001
++		FCB %01001001
++		FCB %01001001
++		FCB %01001001
++		FCB %01001001
++		FCB %01000110
++		FCB %00000000
++
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %10101111
++		FCB %10101111
++		FCB %01001001
++		FCB %00000000
++
++		FCB %10011001
++		FCB %10011001
++		FCB %01101001
++		FCB %01100111
++		FCB %10010001
++		FCB %10010001
++		FCB %10010110
++		FCB %00000000
++
++		FCB %11110111
++		FCB %00010100
++		FCB %00100100
++		FCB %01000100
++		FCB %10000100
++		FCB %10000100
++		FCB %11110111
++		FCB %00000000
++
++		FCB %00001110
++		FCB %10000010
++		FCB %01000010
++		FCB %00100010
++		FCB %00010010
++		FCB %00010010
++		FCB %00001110
++		FCB %00000000
++
++		FCB %01000000
++		FCB %10100000
++		FCB %10100000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00001111
++
++		FCB %01000000
++		FCB %01000000
++		FCB %00100110
++		FCB %00000001
++		FCB %00000111
++		FCB %00001001
++		FCB %00000111
++		FCB %00000000
++
++		FCB %10000000
++		FCB %10000000
++		FCB %10000111
++		FCB %11101000
++		FCB %10011000
++		FCB %10011000
++		FCB %11100111
++		FCB %00000000
++
++		FCB %00010000
++		FCB %00010000
++		FCB %00010110
++		FCB %01111001
++		FCB %10011111
++		FCB %10011000
++		FCB %01110111
++		FCB %00000000
++
++		FCB %00110000
++		FCB %01000000
++		FCB %01000111
++		FCB %11101001
++		FCB %01001001
++		FCB %01000111
++		FCB %01000001
++		FCB %00000110
++
++		FCB %10000100
++		FCB %10000000
++		FCB %10001100
++		FCB %11100100
++		FCB %10010100
++		FCB %10010100
++		FCB %10011110
++		FCB %00000000
++
++		FCB %00101000
++		FCB %00001000
++		FCB %01101001
++		FCB %00101010
++		FCB %00101100
++		FCB %00101010
++		FCB %00101001
++		FCB %11000000
++
++		FCB %11000000
++		FCB %01000000
++		FCB %01001110
++		FCB %01001111
++		FCB %01001111
++		FCB %01001001
++		FCB %11101001
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %11100110
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %10010110
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %11100111
++		FCB %10011001
++		FCB %10011001
++		FCB %11100111
++		FCB %10000001
++		FCB %10000001
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10110111
++		FCB %11001000
++		FCB %10000110
++		FCB %10000001
++		FCB %10001110
++		FCB %00000000
++
++		FCB %01000000
++		FCB %01000000
++		FCB %11111001
++		FCB %01001001
++		FCB %01001001
++		FCB %01001001
++		FCB %00110111
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10011001
++		FCB %10011001
++		FCB %10011111
++		FCB %10101111
++		FCB %01001001
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10011001
++		FCB %10011001
++		FCB %01101001
++		FCB %10010111
++		FCB %10010001
++		FCB %00000110
++
++		FCB %00000011
++		FCB %00000100
++		FCB %11110100
++		FCB %00101000
++		FCB %01000100
++		FCB %10000100
++		FCB %11110011
++		FCB %00000000
++
++		FCB %01001100
++		FCB %01000010
++		FCB %01000010
++		FCB %00000001
++		FCB %01000010
++		FCB %01000010
++		FCB %01001100
++		FCB %00000000
++
++		FCB %01011111
++		FCB %10100000
++		FCB %00001111
++		FCB %00000000
++		FCB %00001111
++		FCB %00000000
++		FCB %00001111
++		FCB %00000000
++
++		FCB %00111111
++		FCB %01001111
++		FCB %11111111
++		FCB %10001111
++		FCB %11111111
++		FCB %01001111
++		FCB %00111111
++		FCB %00000000
++
++		FCB %00000010
++		FCB %00000100
++		FCB %00000100
++		FCB %00001110
++		FCB %00000100
++		FCB %00100100
++		FCB %01001000
++		FCB %10000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %01011010
++		FCB %01011010
++		FCB %10100000
++
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %01000100
++		FCB %01001110
++		FCB %01000100
++		FCB %01000100
++		FCB %00000000
++
++		FCB %01001100
++		FCB %10101101
++		FCB %10100010
++		FCB %00000100
++		FCB %00001000
++		FCB %00000101
++		FCB %00000101
++		FCB %00000000
++
++		FCB %01010000
++		FCB %00100000
++		FCB %01110001
++		FCB %10000010
++		FCB %01100100
++		FCB %00010010
++		FCB %11100001
++		FCB %00000000
++
++		FCB %01110000
++		FCB %10100000
++		FCB %10100000
++		FCB %10110000
++		FCB %10100000
++		FCB %10100000
++		FCB %01111111
++		FCB %00001111
++
++		FCB %01010000
++		FCB %00100000
++		FCB %11110000
++		FCB %00100000
++		FCB %01000000
++		FCB %10000000
++		FCB %11110000
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00000010
++		FCB %00000001
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00100101
++		FCB %01000101
++		FCB %10001010
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %10100000
++		FCB %10100000
++		FCB %01010110
++		FCB %00001111
++		FCB %00000110
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %11111111
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %01011110
++		FCB %10100100
++		FCB %00000100
++		FCB %00000000
++		FCB %00000111
++		FCB %00000111
++		FCB %00000101
++		FCB %00000000
++
++		FCB %01010000
++		FCB %00100000
++		FCB %01100100
++		FCB %10000010
++		FCB %01100001
++		FCB %00010010
++		FCB %01100100
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %01110000
++		FCB %10100000
++		FCB %10110000
++		FCB %10100000
++		FCB %01110000
++		FCB %00000000
++
++		FCB %00001001
++		FCB %01010000
++		FCB %00101001
++		FCB %11111001
++		FCB %00100111
++		FCB %01000001
++		FCB %11111110
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00000000
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++
++		FCB %00000010
++		FCB %00100100
++		FCB %01110100
++		FCB %10001110
++		FCB %10000100
++		FCB %01110100
++		FCB %00101111
++		FCB %00000000
++
++		FCB %00001001
++		FCB %10011001
++		FCB %01100110
++		FCB %10010010
++		FCB %01100111
++		FCB %10010111
++		FCB %00000010
++		FCB %00000000
++
++		FCB %01000111
++		FCB %01001000
++		FCB %01000110
++		FCB %00001001
++		FCB %01000110
++		FCB %01000001
++		FCB %01001110
++		FCB %00000000
++
++		FCB %10010110
++		FCB %00001001
++		FCB %00001011
++		FCB %00001101
++		FCB %00001011
++		FCB %00001001
++		FCB %00000110
++		FCB %00000000
++
++		FCB %11100000
++		FCB %00010000
++		FCB %11110000
++		FCB %01110011
++		FCB %00000110
++		FCB %00001100
++		FCB %00000110
++		FCB %00000011
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %11111110
++		FCB %00010000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00001111
++		FCB %00000000
++		FCB %11100000
++		FCB %11110000
++		FCB %10100000
++		FCB %10010000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %01100100
++		FCB %10010100
++		FCB %01101110
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++
++		FCB %11001100
++		FCB %00100010
++		FCB %01101100
++		FCB %10000010
++		FCB %11101100
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00100000
++		FCB %01000000
++		FCB %00000101
++		FCB %00000101
++		FCB %00000101
++		FCB %00000111
++		FCB %00000100
++		FCB %00001000
++
++		FCB %01110000
++		FCB %10110000
++		FCB %10110000
++		FCB %10110110
++		FCB %01110110
++		FCB %00110000
++		FCB %00110000
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00001100
++		FCB %00000100
++		FCB %00000100
++		FCB %00001110
++		FCB %01000000
++		FCB %00100000
++		FCB %11000000
++
++		FCB %01100000
++		FCB %10010000
++		FCB %10011100
++		FCB %01100110
++		FCB %00000011
++		FCB %00000110
++		FCB %00001100
++		FCB %00000000
++
++		FCB %10001000
++		FCB %10011001
++		FCB %10101010
++		FCB %01000110
++		FCB %11011001
++		FCB %01110110
++		FCB %00010111
++		FCB %00000000
++
++		FCB %11000010
++		FCB %11110000
++		FCB %11100010
++		FCB %01000100
++		FCB %11011000
++		FCB %01111001
++		FCB %00010110
++		FCB %00000000
++
++		FCB %10000001
++		FCB %01000010
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %11111111
++		FCB %10011001
++		FCB %00000000
++
++		FCB %01101111
++		FCB %10010000
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %11111111
++		FCB %10011001
++		FCB %00000000
++
++		FCB %10010110
++		FCB %00000110
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %11111111
++		FCB %10011001
++		FCB %00000000
++
++		FCB %00110110
++		FCB %01101001
++		FCB %10101000
++		FCB %10111000
++		FCB %11101000
++		FCB %10101001
++		FCB %10110110
++		FCB %00001100
++
++		FCB %01000010
++		FCB %00100100
++		FCB %11111111
++		FCB %10001000
++		FCB %11101110
++		FCB %10001000
++		FCB %11111111
++		FCB %00000000
++
++		FCB %01101001
++		FCB %10010000
++		FCB %11111111
++		FCB %10001000
++		FCB %11101110
++		FCB %10001000
++		FCB %11111111
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %11101110
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %11101110
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %11001111
++		FCB %10100000
++		FCB %10011001
++		FCB %11011101
++		FCB %10011011
++		FCB %10101001
++		FCB %11001001
++		FCB %00000000
++
++		FCB %10000001
++		FCB %01000010
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %01101111
++		FCB %10010000
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %10010000
++		FCB %00000000
++		FCB %01101001
++		FCB %10010110
++		FCB %10010110
++		FCB %10011001
++		FCB %01100000
++		FCB %00000000
++
++		FCB %00010100
++		FCB %01100010
++		FCB %10011001
++		FCB %10111001
++		FCB %11011001
++		FCB %10011001
++		FCB %01100110
++		FCB %10000000
++
++		FCB %00100110
++		FCB %01001001
++		FCB %10010000
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %10010010
++		FCB %00000100
++		FCB %10011001
++		FCB %10011001
++		FCB %10010111
++		FCB %10010001
++		FCB %01101110
++		FCB %00000000
++
++		FCB %10000110
++		FCB %10001001
++		FCB %11001001
++		FCB %10101010
++		FCB %11001001
++		FCB %10001001
++		FCB %10001010
++		FCB %00000000
++
++		FCB %01000001
++		FCB %00100010
++		FCB %01100110
++		FCB %00010001
++		FCB %01110111
++		FCB %10011001
++		FCB %01110111
++		FCB %00000000
++
++		FCB %01101111
++		FCB %10010000
++		FCB %01100110
++		FCB %00010001
++		FCB %01110111
++		FCB %10011001
++		FCB %01110111
++		FCB %00000000
++
++		FCB %10010110
++		FCB %00000110
++		FCB %01100110
++		FCB %00010001
++		FCB %01110111
++		FCB %10011001
++		FCB %01110111
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %11010111
++		FCB %00111000
++		FCB %01111000
++		FCB %10101000
++		FCB %01110111
++		FCB %00001100
++
++		FCB %10000001
++		FCB %01000010
++		FCB %01100110
++		FCB %10011001
++		FCB %11111111
++		FCB %10001000
++		FCB %01110111
++		FCB %00000000
++
++		FCB %01101001
++		FCB %10010000
++		FCB %01100110
++		FCB %10011001
++		FCB %11111111
++		FCB %10001000
++		FCB %01110111
++		FCB %00000000
++
++		FCB %10000001
++		FCB %01000010
++		FCB %11001100
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %11001100
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %10001111
++		FCB %01010000
++		FCB %00101110
++		FCB %01011001
++		FCB %10011001
++		FCB %10011001
++		FCB %01101001
++		FCB %00000000
++
++		FCB %10000001
++		FCB %01000010
++		FCB %00000000
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %01100000
++		FCB %10011111
++		FCB %00000000
++		FCB %01100110
++		FCB %10011001
++		FCB %10011001
++		FCB %01100110
++		FCB %00000000
++
++		FCB %00000110
++		FCB %10010110
++		FCB %00000000
++		FCB %01101111
++		FCB %10010000
++		FCB %10010110
++		FCB %01100110
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00010010
++		FCB %01101001
++		FCB %10111001
++		FCB %11011001
++		FCB %10011001
++		FCB %01100111
++		FCB %10000000
++
++		FCB %00100110
++		FCB %01001001
++		FCB %10010000
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %01110111
++		FCB %00000000
++
++		FCB %10010010
++		FCB %00000100
++		FCB %10011001
++		FCB %10011001
++		FCB %10011001
++		FCB %10010111
++		FCB %01110001
++		FCB %00000110
++
++		FCB %10001001
++		FCB %10000000
++		FCB %11101001
++		FCB %10011001
++		FCB %11101001
++		FCB %10000111
++		FCB %10000001
++		FCB %00000110
+diff --git a/hdbdos/font64.asm b/hdbdos/font64.asm
+new file mode 100644
+index 0000000..4447325
+--- /dev/null
++++ b/hdbdos/font64.asm
+@@ -0,0 +1,1007 @@
++CHARSET64	FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++		FCB %00000100
++		FCB %00000000
++
++		FCB %10100100
++		FCB %10100100
++		FCB %10101110
++		FCB %00000100
++		FCB %00001110
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++
++		FCB %01001100
++		FCB %01101100
++		FCB %10000010
++		FCB %01000100
++		FCB %00101000
++		FCB %11000110
++		FCB %01000110
++		FCB %00000000
++
++		FCB %01000100
++		FCB %10100100
++		FCB %11000100
++		FCB %01000000
++		FCB %10100000
++		FCB %11000000
++		FCB %01100000
++		FCB %00000000
++
++		FCB %00101000
++		FCB %01000100
++		FCB %10000010
++		FCB %10000010
++		FCB %10000010
++		FCB %01000100
++		FCB %00101000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %10100100
++		FCB %01000100
++		FCB %11101110
++		FCB %01000100
++		FCB %10100100
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00001110
++		FCB %01100000
++		FCB %01100000
++		FCB %00100000
++		FCB %01000000
++
++		FCB %00000000
++		FCB %00000010
++		FCB %00000010
++		FCB %00000100
++		FCB %00000100
++		FCB %11001000
++		FCB %11001000
++		FCB %00000000
++
++		FCB %01000100
++		FCB %10101100
++		FCB %10100100
++		FCB %10100100
++		FCB %10100100
++		FCB %10100100
++		FCB %01001110
++		FCB %00000000
++
++		FCB %11001100
++		FCB %00100010
++		FCB %00100010
++		FCB %01000100
++		FCB %10000010
++		FCB %10000010
++		FCB %11101100
++		FCB %00000000
++
++		FCB %00101110
++		FCB %10101000
++		FCB %10101100
++		FCB %11100010
++		FCB %00100010
++		FCB %00100010
++		FCB %00101100
++		FCB %00000000
++
++		FCB %01101110
++		FCB %10000010
++		FCB %10000010
++		FCB %11000100
++		FCB %10100100
++		FCB %10101000
++		FCB %01001000
++		FCB %00000000
++
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %01000110
++		FCB %10100010
++		FCB %10100010
++		FCB %01001100
++		FCB %00000000
++
++		FCB %00000000
++		FCB %11001100
++		FCB %11001100
++		FCB %00000000
++		FCB %11001100
++		FCB %11001100
++		FCB %00000100
++		FCB %00001000
++
++		FCB %00000000
++		FCB %00100000
++		FCB %01001110
++		FCB %10000000
++		FCB %01001110
++		FCB %00100000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00000100
++		FCB %10001010
++		FCB %01000010
++		FCB %00100100
++		FCB %01000100
++		FCB %10000000
++		FCB %00000100
++		FCB %00000000
++
++		FCB %01000100
++		FCB %10101010
++		FCB %11101010
++		FCB %11101110
++		FCB %10101010
++		FCB %10001010
++		FCB %01101010
++		FCB %00000000
++
++		FCB %11000110
++		FCB %10101000
++		FCB %10101000
++		FCB %11001000
++		FCB %10101000
++		FCB %10101000
++		FCB %11000110
++		FCB %00000000
++
++		FCB %11001110
++		FCB %10101000
++		FCB %10101000
++		FCB %10101100
++		FCB %10101000
++		FCB %10101000
++		FCB %11001110
++		FCB %00000000
++
++		FCB %11100110
++		FCB %10001000
++		FCB %10001000
++		FCB %11001010
++		FCB %10001010
++		FCB %10001010
++		FCB %10000110
++		FCB %00000000
++
++		FCB %10101110
++		FCB %10100100
++		FCB %10100100
++		FCB %11100100
++		FCB %10100100
++		FCB %10100100
++		FCB %10101110
++		FCB %00000000
++
++		FCB %00101010
++		FCB %00101010
++		FCB %00101100
++		FCB %00101100
++		FCB %10101010
++		FCB %10101010
++		FCB %01001010
++		FCB %00000000
++
++		FCB %10001010
++		FCB %10001110
++		FCB %10001110
++		FCB %10001010
++		FCB %10001010
++		FCB %10001010
++		FCB %11101010
++		FCB %00000000
++
++		FCB %11001110
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10101110
++		FCB %00000000
++
++		FCB %11000100
++		FCB %10101010
++		FCB %10101010
++		FCB %11001010
++		FCB %10001110
++		FCB %10001100
++		FCB %10000110
++		FCB %00000000
++
++		FCB %11000110
++		FCB %10101000
++		FCB %10101000
++		FCB %11000100
++		FCB %10100010
++		FCB %10100010
++		FCB %10101100
++		FCB %00000000
++
++		FCB %11101010
++		FCB %01001010
++		FCB %01001010
++		FCB %01001010
++		FCB %01001010
++		FCB %01001010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %11001010
++		FCB %11001110
++		FCB %10001110
++		FCB %10001010
++		FCB %00000000
++
++		FCB %10101010
++		FCB %10101010
++		FCB %01001010
++		FCB %01000110
++		FCB %10100010
++		FCB %10100010
++		FCB %10100100
++		FCB %00000000
++
++		FCB %11101110
++		FCB %00101000
++		FCB %01001000
++		FCB %01001000
++		FCB %10001000
++		FCB %10001000
++		FCB %11101110
++		FCB %00000000
++
++		FCB %00001110
++		FCB %10000010
++		FCB %10000010
++		FCB %01000010
++		FCB %01000010
++		FCB %00100010
++		FCB %00101110
++		FCB %00000000
++
++		FCB %01000000
++		FCB %10100000
++		FCB %10100000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00001110
++
++		FCB %01000000
++		FCB %01000000
++		FCB %00101100
++		FCB %00000010
++		FCB %00000110
++		FCB %00001010
++		FCB %00000110
++		FCB %00000000
++
++		FCB %10000000
++		FCB %10000000
++		FCB %10000110
++		FCB %11001000
++		FCB %10101000
++		FCB %10101000
++		FCB %11000110
++		FCB %00000000
++
++		FCB %00100000
++		FCB %00100000
++		FCB %00100100
++		FCB %01101010
++		FCB %10101110
++		FCB %10101000
++		FCB %01100110
++		FCB %00000000
++
++		FCB %00100000
++		FCB %01000000
++		FCB %01000110
++		FCB %11101010
++		FCB %01001010
++		FCB %01000110
++		FCB %01000010
++		FCB %00000100
++
++		FCB %10000100
++		FCB %10000000
++		FCB %10001100
++		FCB %11000100
++		FCB %10100100
++		FCB %10100100
++		FCB %10101110
++		FCB %00000000
++
++		FCB %00101000
++		FCB %00001000
++		FCB %01101010
++		FCB %00101010
++		FCB %00101100
++		FCB %00101010
++		FCB %00101010
++		FCB %11000000
++
++		FCB %11000000
++		FCB %01000000
++		FCB %01001100
++		FCB %01001110
++		FCB %01001110
++		FCB %01001110
++		FCB %11101010
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %11000100
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10100100
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %11000110
++		FCB %10101010
++		FCB %10101010
++		FCB %11000110
++		FCB %10000010
++		FCB %10000010
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10100110
++		FCB %11001000
++		FCB %10000100
++		FCB %10000010
++		FCB %10001100
++		FCB %00000000
++
++		FCB %01000000
++		FCB %01000000
++		FCB %11101010
++		FCB %01001010
++		FCB %01001010
++		FCB %01001010
++		FCB %00100110
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10101010
++		FCB %10101010
++		FCB %10101110
++		FCB %11001110
++		FCB %10001010
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10101010
++		FCB %10101010
++		FCB %01001010
++		FCB %10100110
++		FCB %10100010
++		FCB %00000100
++
++		FCB %00000010
++		FCB %00000100
++		FCB %11100100
++		FCB %00101000
++		FCB %01000100
++		FCB %10000100
++		FCB %11100010
++		FCB %00000000
++
++		FCB %01001000
++		FCB %01000100
++		FCB %01000100
++		FCB %00000010
++		FCB %01000100
++		FCB %01000100
++		FCB %01001000
++		FCB %00000000
++
++		FCB %11101110
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++
++		FCB %00101110
++		FCB %01001110
++		FCB %11101110
++		FCB %10001110
++		FCB %11101110
++		FCB %01001110
++		FCB %00101110
++		FCB %00000000
++
++		FCB %00000010
++		FCB %00000100
++		FCB %00000100
++		FCB %00001110
++		FCB %00000100
++		FCB %00100100
++		FCB %01001000
++		FCB %10000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %01011010
++		FCB %01011010
++		FCB %10100000
++
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %01000100
++		FCB %01001110
++		FCB %01000100
++		FCB %01000100
++		FCB %00000000
++
++		FCB %01001100
++		FCB %10101101
++		FCB %10100010
++		FCB %00000100
++		FCB %00001000
++		FCB %00000101
++		FCB %00000101
++		FCB %00000000
++
++		FCB %10100000
++		FCB %01000000
++		FCB %01100010
++		FCB %10000100
++		FCB %01001000
++		FCB %00100100
++		FCB %11000010
++		FCB %00000000
++
++		FCB %01100000
++		FCB %11000000
++		FCB %11000000
++		FCB %11100000
++		FCB %11000000
++		FCB %11000000
++		FCB %01101110
++		FCB %00001110
++
++		FCB %10100000
++		FCB %01000000
++		FCB %11100000
++		FCB %00100000
++		FCB %01000000
++		FCB %10000000
++		FCB %11100000
++		FCB %00000000
++
++		FCB %00001000
++		FCB %00000100
++		FCB %00000010
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00100101
++		FCB %01000101
++		FCB %10001010
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %10100000
++		FCB %10100000
++		FCB %01010100
++		FCB %00001110
++		FCB %00000100
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %11111111
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %11101110
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++		FCB %00001110
++		FCB %00001110
++		FCB %00001010
++		FCB %00000000
++
++		FCB %10100000
++		FCB %01000000
++		FCB %01101000
++		FCB %10000100
++		FCB %01000010
++		FCB %00100100
++		FCB %11001000
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %01100000
++		FCB %11000000
++		FCB %11100000
++		FCB %11000000
++		FCB %01100000
++		FCB %00000000
++
++		FCB %00001010
++		FCB %10100000
++		FCB %01001010
++		FCB %11101010
++		FCB %01000110
++		FCB %10000010
++		FCB %11101100
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00000000
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++
++		FCB %00000100
++		FCB %01001000
++		FCB %01101000
++		FCB %10001100
++		FCB %10001000
++		FCB %01101000
++		FCB %01001110
++		FCB %00000000
++
++		FCB %00001010
++		FCB %10101010
++		FCB %01000100
++		FCB %10100100
++		FCB %01001110
++		FCB %10101110
++		FCB %00000100
++		FCB %00000000
++
++		FCB %01000110
++		FCB %01001000
++		FCB %01000100
++		FCB %00001010
++		FCB %01000100
++		FCB %01000010
++		FCB %01001100
++		FCB %00000000
++
++		FCB %10101110
++		FCB %00000000
++		FCB %00001110
++		FCB %00001000
++		FCB %00001110
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++
++		FCB %11000000
++		FCB %00100000
++		FCB %11100000
++		FCB %11100011
++		FCB %00000110
++		FCB %00001100
++		FCB %00000110
++		FCB %00000011
++
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++		FCB %11101110
++		FCB %00100000
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00001110
++		FCB %00000000
++		FCB %11000000
++		FCB %11100000
++		FCB %11000000
++		FCB %10100000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %01000100
++		FCB %10100100
++		FCB %01001110
++		FCB %00000100
++		FCB %00000100
++		FCB %00000000
++		FCB %00001110
++		FCB %00000000
++
++		FCB %11001100
++		FCB %00100010
++		FCB %01101100
++		FCB %10000010
++		FCB %11101100
++		FCB %00000000
++		FCB %00000000
++		FCB %00000000
++
++		FCB %00100000
++		FCB %01000000
++		FCB %00001010
++		FCB %00001010
++		FCB %00001010
++		FCB %00001110
++		FCB %00001000
++		FCB %00001000
++
++		FCB %01100000
++		FCB %11100000
++		FCB %11100000
++		FCB %11100110
++		FCB %01100110
++		FCB %01100000
++		FCB %01100000
++		FCB %00000000
++
++		FCB %00000100
++		FCB %00001100
++		FCB %00000100
++		FCB %00000100
++		FCB %00001110
++		FCB %01000000
++		FCB %00100000
++		FCB %11000000
++
++		FCB %01000000
++		FCB %10100000
++		FCB %10101100
++		FCB %01000110
++		FCB %00000011
++		FCB %00000110
++		FCB %00001100
++		FCB %00000000
++
++		FCB %10001000
++		FCB %10011001
++		FCB %10101010
++		FCB %01000110
++		FCB %11011001
++		FCB %01110110
++		FCB %00010111
++		FCB %00000000
++
++		FCB %11000100
++		FCB %11110000
++		FCB %11100100
++		FCB %01001000
++		FCB %11011000
++		FCB %01111010
++		FCB %00010100
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %11101110
++		FCB %10101010
++		FCB %00000000
++
++		FCB %01001110
++		FCB %10100000
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %11101110
++		FCB %10101010
++		FCB %00000000
++
++		FCB %10100100
++		FCB %00001110
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %11101110
++		FCB %10101010
++		FCB %00000000
++
++		FCB %01100100
++		FCB %11001010
++		FCB %11001000
++		FCB %11101000
++		FCB %11001000
++		FCB %11001010
++		FCB %11100100
++		FCB %00001100
++
++		FCB %10000010
++		FCB %01000100
++		FCB %11101110
++		FCB %10001000
++		FCB %11001100
++		FCB %10001000
++		FCB %11101110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %11101110
++		FCB %10001000
++		FCB %11001100
++		FCB %10001000
++		FCB %11101110
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %11101110
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %11101110
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %10001110
++		FCB %11000000
++		FCB %10101010
++		FCB %11101110
++		FCB %10101110
++		FCB %11001110
++		FCB %10001010
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %01001110
++		FCB %10100100
++		FCB %01001010
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %10100000
++		FCB %01000000
++		FCB %10101010
++		FCB %10100100
++		FCB %10100100
++		FCB %10101010
++		FCB %01000000
++		FCB %00000000
++
++		FCB %00101100
++		FCB %01000000
++		FCB %10101010
++		FCB %11101010
++		FCB %11101010
++		FCB %10101010
++		FCB %01000100
++		FCB %10000000
++
++		FCB %00100100
++		FCB %01001010
++		FCB %10100000
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %10100010
++		FCB %00000100
++		FCB %10101010
++		FCB %10101010
++		FCB %10100110
++		FCB %10100010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %10000100
++		FCB %10001010
++		FCB %11001010
++		FCB %10101100
++		FCB %11001010
++		FCB %10001010
++		FCB %10001100
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %11001100
++		FCB %00100010
++		FCB %01100110
++		FCB %10101010
++		FCB %01100110
++		FCB %00000000
++
++		FCB %01001110
++		FCB %10100000
++		FCB %11001100
++		FCB %00100010
++		FCB %01100110
++		FCB %10101010
++		FCB %01100110
++		FCB %00000000
++
++		FCB %10100110
++		FCB %00000110
++		FCB %11001100
++		FCB %00100010
++		FCB %01100110
++		FCB %10101010
++		FCB %01100110
++		FCB %00000000
++
++		FCB %00000000
++		FCB %00000000
++		FCB %10100110
++		FCB %01101000
++		FCB %01101000
++		FCB %11001000
++		FCB %01100110
++		FCB %00001100
++
++		FCB %10000010
++		FCB %01000100
++		FCB %01000100
++		FCB %10101010
++		FCB %11101110
++		FCB %10001000
++		FCB %01100110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %01000100
++		FCB %10101010
++		FCB %11101110
++		FCB %10001000
++		FCB %01100110
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %11001100
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %01001010
++		FCB %10100000
++		FCB %11001100
++		FCB %01000100
++		FCB %01000100
++		FCB %01000100
++		FCB %11101110
++		FCB %00000000
++
++		FCB %10001110
++		FCB %01100000
++		FCB %01001100
++		FCB %01101010
++		FCB %10101010
++		FCB %10101010
++		FCB %01001010
++		FCB %00000000
++
++		FCB %10000010
++		FCB %01000100
++		FCB %00000000
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %01000000
++		FCB %10101110
++		FCB %00000000
++		FCB %01000100
++		FCB %10101010
++		FCB %10101010
++		FCB %01000100
++		FCB %00000000
++
++		FCB %00000000
++		FCB %10100100
++		FCB %00000000
++		FCB %01001110
++		FCB %10100000
++		FCB %10100100
++		FCB %01000000
++		FCB %00000000
++
++		FCB %00001000
++		FCB %00100100
++		FCB %01001010
++		FCB %10101010
++		FCB %11101010
++		FCB %10101010
++		FCB %01000110
++		FCB %10000000
++
++		FCB %00100100
++		FCB %01001010
++		FCB %10100000
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %01100110
++		FCB %00000000
++
++		FCB %10100010
++		FCB %00000100
++		FCB %10101010
++		FCB %10101010
++		FCB %10101010
++		FCB %10100110
++		FCB %01100010
++		FCB %00001100
++
++		FCB %10001010
++		FCB %10000000
++		FCB %11001010
++		FCB %10101010
++		FCB %11001010
++		FCB %10000110
++		FCB %10000010
++		FCB %00001100
+diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
+index c3c1878..050a0f0 100644
+--- a/hdbdos/hdbdos.asm
++++ b/hdbdos/hdbdos.asm
+@@ -95,6 +95,7 @@ FATS           equ       $800
+ 
+ 
+ SKIP2          equ       $8C
++IntMasks       equ       $50
+ 
+                IFDEF     SDC
+ RBLK	          equ       $2             read a block opcode
+@@ -117,7 +118,6 @@ WBLK           equ       OP_WRITE            Write Block
+ 
+ 
+ Carry          equ       1
+-IntMasks       equ       $50
+ E$CRC          equ       243
+ E$NotRdy       equ       246
+ PIA1Base       equ       $FF20
+@@ -159,7 +159,7 @@ INDEX          equ       %00000010           Revolution complete
+ ERROR          equ       %00000001           Error detected
+ 
+ * IDE Hardware Offsets
+-DATAADDR       equ       $FF70
++DATAADDR       equ       $FF70               Considered change to FF50 (check)
+ DATARW         equ       0                   8 bits (1st 8, non-latched)
+ ERR            equ       1                   Error when read
+ FEATUR         equ       1                   Write
+@@ -441,7 +441,12 @@ FCBCON         equ       25                  OFFSET TO FCB DATA BUFFER (256 BYTE
+ * HDB-DOS Version
+ VMAJOR         equ       1
+ VMINOR         equ       5
++	IFDEF ROM16K
++VREV           equ       4
++	ELSE
+ VREV           equ       0
++	ENDC
++
+ 
+ 
+                setdp     0
+@@ -1640,9 +1645,13 @@ LC945          sta       ,U+                 STORE A BLANK IN FILE NAME
+                ldb       #$03                3 BYTES IN EXTENSION
+                jsr       >LA59A              MOVE B BYTES FROM (X) TO (U)
+                jsr       >L8748              EVALUATE A STRING EXPRESSION
++               IFDEF     ROM16K
++               lbra      CHKDRVBEFORE
++               nop
++               ELSE
+                leau      ,X                  POINT U TO START OF STRING
+-
+                bra       LC96A               Jump around patch
++               ENDC
+ FIXBUG         lbne      LCB97               Continue old code
+                puls      u,x,d               -DITTO-
+                cmpu      $94A                Is buffer end > pointer?
+@@ -2445,7 +2454,13 @@ LCF07          jmp       >LAFA4              BRANCH BACK TO BASIC’S 'LET' COMM
+ DXCVEC         cmpa      #TOKEN_DLOAD        TOKEN FOR DLOAD?
+                beq       LCF2A               YES
+                cmpa      #TOKEN_PMODE        TOKEN for PMODE?
++
++	       IFDEF	 ROM16K
++	       LBNE	 DXCVEC16K
++	       ELSE
+                lbne      L813C               NO
++	       ENDC
++
+ * DISK BASIC MODIFIER FOR PMODE - ALLOWS FOR THE RAM THE DOS USES
+                jsr       GETNCH              GET NEXT CHARACTER FROM BASIC
+                cmpa      #',                 CHECK FOR COMMA
+@@ -2460,7 +2475,13 @@ LCF2A          jsr       >LA429              CLOSE FILES
+                jsr       GETNCH              GET NEXT CHARACTER FROM BASIC
+                jmp       >L8C1B              JUMP TO EXBAS' DLOAD
+ DXIVEC         cmpb      #(TOKEN_POS-$80)*2  MODIFIED TOKEN FOR POS
++
++	       IFDEF	 ROM16K
++	       LBNE	 DXIVEC16K	     IF NOT POS, TEST TIMER OR OTHER PATCHED FUNCS
++	       ELSE
+                lbne      L8168               IF NOT POS, GO TO EXBAS SECONDARY COMM HANDLER
++	       ENDC
++
+                jsr       >LB262              SYNTAX CHECK FOR '(' AND EVALUATE EXPRESSION
+                lda       DEVNUM              * GET DEVICE NUMBER AND
+                pshs      A                   * SAVE IT ON STACK
+@@ -3744,7 +3765,14 @@ DIRQSV         lda       PIA0+3              63.5 MICRO SECOND OR 60 HZ INTERRUP
+                anda      #$B0                = TURN ALL MOTORS AND DRIVE SELECTS OFF
+                sta       DRGRAM              = PUT IT BACK IN RAM IMAGE
+                sta       DSKREG              SEND TO CONTROL REGISTER (MOTORS OFF)
++
++               IFDEF     ROM16K
++LD8CD	       JMP	 EXTTIMERINC         JUMP TO EXTENDED BASIC'S IRQ HANDLER
++	       ELSE
+ LD8CD          jmp       >L8955              JUMP TO EXTENDED BASIC'S IRQ HANDLER
++	       ENDC
++
++
+ * THIS IS THE END OF DISK BASIC (EXCEPT FOR THE DOS COMMAND AT $DF00).
+ * THE CODE FROM THIS POINT TO $DF00 IS GARBAGE.
+ * DOSBAS 1.1 = 1584 WASTED BYTES
+@@ -3821,6 +3849,7 @@ B4HARD		EQU .
+                fdb       BEEP                Make a beep sound
+                fdb       DSKCON2             DSKCON Re-entry
+ 
++* Study how to manipulate this to relocate HDB-DOS partition
+ HDBHI          fcb       $00                 HDB-DOS Offset hi-byte
+ HDBLO          fdb       $0000               HDB-DOS Offset lo-word
+ 
+@@ -3839,6 +3868,9 @@ DEFID          fcb       0
+ 
+ HDINIT         ldx       #SIGNON-1           Point to sign-on
+                lbsr      PRINT2              Print it
++               IFDEF     ROM16K
++               jsr       $E000
++               ENDC
+ 
+                ldd       #(9*256)+0          Write 9 bytes of 0...
+                ldx       #INTFLG             ...Into our RAM (clear it)
+@@ -4692,6 +4724,7 @@ a@             decb                          Count it down
+ 
+ * Set directory size by screen width
+ 
++               IFNDEF     ROM16K
+ SETSIZ         lda       <$E7                Get screen mode
+                suba      #2                  WIDTH 80?
+                beq       COL5                Yes, do 5 columns
+@@ -4702,6 +4735,7 @@ SETSIZ         lda       <$E7                Get screen mode
+                fcb       SKIP2               Skip lda #5
+ COL5           lda       #5                  Five columns
+                sta       DIR1                Store in temp RAM
++               ENDC
+ 
+ * Break DIR into columns
+ 
+@@ -5187,10 +5221,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
+ 
+ * Main Sign-On Message And Copyright Notice
+ 
+-SIGNON         fcc       "HDB-DOS "
++SIGNON         fcc       "HDB-DOS"
++               IFDEF     ROM16K
++               fcc       "/16"
++               ENDC
++               fcc       " "
++               ENDC
+                fcb       VMAJOR+$30,$2E,VMINOR+$30
+                IFNE      VREV
+-               fcb       VREV
++               fcc       "R"
++               fcb       VREV+$30
+                ENDC      
+                fcb       $20
+                IFDEF     IDE
+@@ -5288,13 +5328,13 @@ C@             jmp       XVEC3               Console out
+ * Source code reproduced from Rainbow - October 1984
+ 
+ FLEXKY         lda       <$6F                Get device number
+-               beq       KEY                 Go if keyboard
+-               cmpa      #-1                 Doing cassete I/O?
++               beq       YESFLEXKY           Go if keyboard
++NOFLEXKY       cmpa      #-1                 Doing cassete I/O?
+                bne       JMPOUT              No, go to original code
+                nega                          Yes, flag buffer in use
+                sta       INTFLG              Store flag
+ JMPOUT         jmp       DVEC4               Jump to old code
+-KEY            pshs      X,B                 Save registers
++YESFLEXKY      pshs      X,B                 Save registers
+                ldx       7,s                 Where are we coming from?
+                cmpx      #LA39A+3            The idle loop?
+                beq       INIDLE              Yes, do FlexiKey
+@@ -5399,6 +5439,14 @@ DKWMST2       nop                            WARM START INDICATOR
+ 
+ ZZLAST         equ       *-1                 Cannot be > $DFFF!
+ 
++               IFDEF     ROM16K
++
+                fill      $39,MAGICDG+$2000-*
++               USE       el.asm
++ZZLAST16       equ       *-1                 Cannot be > $FEFF!
++               fill      $4A,MAGICDG+$4000-*
++               ELSE
++               fill      $39,MAGICDG+$2000-*
++               ENDC
+ 
+                end LC00C
+diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
+new file mode 100755
+index 0000000..a783024
+--- /dev/null
++++ b/hdbdos/mk16kpackage.sh
+@@ -0,0 +1,18 @@
++#!/bin/bash
++cd `dirname $0`
++_tmpdir="/tmp/hdbdos16k.$$.`date +%s`"
++mkdir "$_tmpdir" || exit 1
++_16kroms="hdbchs hdbd4n1 hdbdhdii hdbdw3arduino hdbdw3bck hdbdw3bckt hdbdw3bckwifi hdbdw3cc1 hdbdw3cc2 hdbdw3dg hdbdw3dm hdbdw3jc2 hdbdw3ln hdbdw3sy hdbkenton hdblba hdblrtech hdbsdc hdbtc3"
++for romname in $_16kroms; do
++	cp 16k-$romname.rom 16k-$romname.rom.lst "$_tmpdir" || exit 2
++done
++cp README-16K.txt "$_tmpdir" && \
++cd .. && \
++git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh
++git diff origin/HEAD >"$_tmpdir/hdbdos-16k.patch" && \
++cd "$_tmpdir" && \
++_zipname=hdbdos-16k.`date +"%Y%m%d.%H%M%S"`.zip && \
++zip "../$_zipname" * >/dev/null && \
++cd .. && \
++rm -rf "$_tmpdir" && \
++echo "HDB-DOS/16K package '/tmp/$_zipname' generated"
+diff --git a/hdbdos/mkslacklist.sh b/hdbdos/mkslacklist.sh
+new file mode 100755
+index 0000000..c5a463d
+--- /dev/null
++++ b/hdbdos/mkslacklist.sh
+@@ -0,0 +1,5 @@
++#!/bin/bash
++rm -f slacks.txt
++for romlst in *.rom.lst; do
++	echo "`echo $romlst | cut -d. -f1`: "`cat "$romlst" | gawk -n '($2=="ZZLAST"){print 0xDFFF - ("0x" $1) " bytes in 1st half" } ($2=="ZZLAST16"){print "/ " (0xFEFF - ("0x" $1)) " bytes in 2nd half"}'` >>slacks.txt
++done
