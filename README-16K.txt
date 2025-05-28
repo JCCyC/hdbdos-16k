@@ -43,14 +43,12 @@ TO DO:
 - Make the AND and OR operators accept values from -2^31 to 2^31-1
   - Create a XOR operator
 - Support for text-mode inverse video and (in the 6847T1) lowercase
+- Create a BIN$ function (nobody cares about OCT$)
 
 
 WIP:
 
 - ON ERR
-- Make HEX$ accept values up to 2^32-1
-  - Use GETABXFROMFPA0 instead of LB740 in new HEXDOLBIG
-  - Create a BIN$ function (nobody cares about OCT$)
 
 
 SUMMARY OF CHANGES:
@@ -82,6 +80,7 @@ SUMMARY OF CHANGES:
 - Accepts binary constants with &B, just like &H and &O
   - Also, these notations can yield values up to 2^32-1
   - Ancient bug in &O (accepted 8 as a digit) fixed
+- Conversely, HEX$ now accepts values up to 2^32-1
 - ERNO and ERLIN - not much use until ONERR works
   - Differently from the CoCo 3, they can be examined in direct mode after
     the BASIC program ends.

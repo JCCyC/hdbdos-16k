@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..12a1d0c
+index 0000000..dd6f1a7
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,97 @@
 +Package contents:
 +
 +- ROMs:
@@ -148,18 +148,20 @@ index 0000000..12a1d0c
 +
 +TO DO:
 +
-+- ON ERR
 +- ON BRK
 +- Option to boot in text mode:
 +  - Different ROM for default in text mode
 +  - One hot key to swap the text mode at boot
 +- Make some use of a 6309
-+- Make HEX$ accept values up to 2^32-1
-+  - Use GETABXFROMFPA0 instead of LB740 in new HEXDOLBIG
-+  - Create a BIN$ function (nobody cares about OCT$)
 +- Make the AND and OR operators accept values from -2^31 to 2^31-1
 +  - Create a XOR operator
 +- Support for text-mode inverse video and (in the 6847T1) lowercase
++- Create a BIN$ function (nobody cares about OCT$)
++
++
++WIP:
++
++- ON ERR
 +
 +
 +SUMMARY OF CHANGES:
@@ -191,6 +193,7 @@ index 0000000..12a1d0c
 +- Accepts binary constants with &B, just like &H and &O
 +  - Also, these notations can yield values up to 2^32-1
 +  - Ancient bug in &O (accepted 8 as a digit) fixed
++- Conversely, HEX$ now accepts values up to 2^32-1
 +- ERNO and ERLIN - not much use until ONERR works
 +  - Differently from the CoCo 3, they can be examined in direct mode after
 +    the BASIC program ends.
@@ -207,10 +210,10 @@ index 0000000..12a1d0c
 +hdbdos/mkslacklist.sh
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..ec5bdb1
+index 0000000..fb714ec
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1384 @@
+@@ -0,0 +1,1383 @@
 +* HDB-DOS/16K: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1513,8 +1516,8 @@ index 0000000..ec5bdb1
 +
 +DXIVEC16K	CMPB	#($9F-$80)*2	MODIFIED TOKEN FOR TIMER
 +		BEQ	TIMERL
-+		* CMPB	#($9C-$80)*2	MODIFIED TOKEN FOR HEX$
-+		* BEQ	HEXDOLBIG
++		CMPB	#($9C-$80)*2	MODIFIED TOKEN FOR HEX$
++		BEQ	HEXDOLBIG
 +		CMPB	#($AB-$80)*2	MODIFIED TOKEN FOR ERNO
 +		BEQ	ERNO
 +		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERLIN
@@ -1592,7 +1595,6 @@ index 0000000..ec5bdb1
 +SKIPLEADINGZERO	PULS	B
 +		DECB
 +		BNE	HEXIZENIBBLE
-+		LEAS	2,S
 +		LDX	#STRBUF+1
 +		JMP	LB518
 diff --git a/hdbdos/font51.asm b/hdbdos/font51.asm
