@@ -5,4 +5,4 @@ A patch for HDBDOS for the TRS-80 Color Computer, adding new functionalities by 
 - Apply the patch to toolshed (https://github.com/nitros9project/toolshed)
 - Build `cocoroms` and `hdbdos`
 - Create a binary package by running `hdbdos/mk16kpackage.sh`
-- More information in `README-16K-txt`
+- More information in `README-16K.txt`
