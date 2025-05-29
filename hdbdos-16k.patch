@@ -210,10 +210,10 @@ index 0000000..dd6f1a7
 +hdbdos/mkslacklist.sh
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..fb714ec
+index 0000000..d3d92e4
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1383 @@
+@@ -0,0 +1,1386 @@
 +* HDB-DOS/16K: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -309,8 +309,8 @@ index 0000000..fb714ec
 +		STD RVEC22+1
 +		LDD #CACHAVEC15
 +		STD RVEC15+1
-+		LDD #CACHAVEC16
-+		STD RVEC16+1
++		LDD #CACHAVEC17
++		STD RVEC17+1
 +		LDD #CACHAVEC18
 +		STD RVEC18+1
 +		LDD #CACHAVEC19
@@ -1009,30 +1009,33 @@ index 0000000..fb714ec
 +
 +* ERROR HANDLING RAM HOOK 1 - STORE ERROR INFORMATION
 +
-+CACHAVEC16	STB	ERRNO
++CACHAVEC17	STB	ERRNO
 +		PSHS	D
 +		LDD	CURLIN
 +		STD	ERRLINE
 +
++		PSHS	X
 +		LDX	CURLIN
 +		LEAX	1,X
 +		BEQ	NOONERRACTIVE
 +		LDX	ONERRTARGET
 +		BEQ	NOONERRACTIVE
 +
-+* WHY DOESN'T THIS WORK?
++* WHY DOES THIS CRASH EVERYTHING?
 +
++*		CMPB	#3*2			OUT OF DATA ERROR?
++*		BNE	NORESTOREINPPTR
++*		LDD	BINVAL
++*		STD	CHARAD
++NORESTOREINPPTR STX	BINVAL
++		PULS	X
 +		PULS	D
 +		LEAS	2,S
-+		CMPB	#3*2			OUT OF DATA ERROR?
-+		BNE	NORESTOREINPPTR
-+		LDD	BINVAL
-+		STD	CHARAD
-+NORESTOREINPPTR STX	BINVAL
 +		JMP	LAEA4+5
 +
-+
-+NOONERRACTIVE	PULS	D,PC
++NOONERRACTIVE	PULS	X
++		PULS	D
++		JMP	DVEC17
 +
 +* RUN RAM HOOK - CLEAR ERROR INFORMATION
 +
@@ -1046,12 +1049,6 @@ index 0000000..fb714ec
 +		STA	ERRNO
 +		PULS	D
 +		JMP	DVEC18
-+
-+* THE "FONT", SUCH AS IT IS. DRAWN ON NOTEPAD FROM SWEET, SWEET
-+* MEMORIES OF SUPER COLOR WRITER. NO, REALLY. NOT KIDDING. HONEST.
-+
-+		INCLUDE font51.asm
-+		INCLUDE font64.asm
 +
 +* CACHARS-AWARE DIRECTORY COLUMN COUNT
 +
@@ -1074,7 +1071,7 @@ index 0000000..fb714ec
 +
 +* DISK BASIC COMMAND DICTIONARY TABLE
 +* TOKEN #
-+ELC192         fcs       'DIR'               CE
++ELC192		fcs       'DIR'               CE
 +		fcs       'DRIVE'             CF
 +		fcs       'FIELD'             D0
 +		fcs       'FILES'             D1
@@ -1119,7 +1116,7 @@ index 0000000..fb714ec
 +		fcs       'ATTR'              F8
 +* DISK BASIC COMMAND JUMP TABLE
 +* COMMAND / TOKEN #
-+ELC1F1         fdb       DIR                 DIR / CE
++ELC1F1		fdb       DIR                 DIR / CE
 +		fdb       DRIVE               DRIVE / CF
 +		fdb       FIELD               FIELD / D0
 +		fdb       FILES               FILES / D1
@@ -1164,7 +1161,7 @@ index 0000000..fb714ec
 +		fdb       ATTR                ATTR / F8
 +* SECONDARY FUNCTION DICTIONARY TABLE
 +* TOKEN #
-+ELC219         fcs       'CVN'               A2
++ELC219		fcs       'CVN'               A2
 +		fcs       'FREE'              A3
 +		fcs       'LOC'               A4
 +		fcs       'LOF'               A5
@@ -1177,7 +1174,7 @@ index 0000000..fb714ec
 +		fcs       'ERLIN'             AC
 +* DISK BASIC SECONDARY FUNCTION JUMP TABLE
 +* FUNCTION / TOKEN #
-+ELC22C         fdb       CVN                 CVN / A2
++ELC22C		fdb       CVN                 CVN / A2
 +		fdb       FREE                FREE / A3
 +		fdb       LOC                 LOC / A4
 +		fdb       LOF                 LOF / A5
@@ -1597,6 +1594,12 @@ index 0000000..fb714ec
 +		BNE	HEXIZENIBBLE
 +		LDX	#STRBUF+1
 +		JMP	LB518
++
++* THE "FONT", SUCH AS IT IS. DRAWN ON NOTEPAD FROM SWEET, SWEET
++* MEMORIES OF SUPER COLOR WRITER. NO, REALLY. NOT KIDDING. HONEST.
++
++		INCLUDE font51.asm
++		INCLUDE font64.asm
 diff --git a/hdbdos/font51.asm b/hdbdos/font51.asm
 new file mode 100644
 index 0000000..56ec075
