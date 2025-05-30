@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..dd6f1a7
+index 0000000..f1785cd
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,99 @@
 +Package contents:
 +
 +- ROMs:
@@ -162,6 +162,8 @@ index 0000000..dd6f1a7
 +WIP:
 +
 +- ON ERR
++  - Error trapping works, now to implement the ONERR statement and save
++    the BASIC line in which ONERR was executed
 +
 +
 +SUMMARY OF CHANGES:
@@ -208,12 +210,30 @@ index 0000000..dd6f1a7
 +hdbdos/font64.asm
 +hdbdos/mk16kpackage.sh
 +hdbdos/mkslacklist.sh
+diff --git a/hdbdos/build-hdbdos-16k.sh b/hdbdos/build-hdbdos-16k.sh
+new file mode 100755
+index 0000000..781f52b
+--- /dev/null
++++ b/hdbdos/build-hdbdos-16k.sh
+@@ -0,0 +1,12 @@
++#!/bin/bash
++cd `dirname "$0"`
++{
++	date +"BUILDMSG        FCC 'Build %Y-%m-%d %H:%M:%S'"
++	echo "                FCB 13,13,0"
++} >buildmsg.asm
++if [ -f el.asm ]; then
++	touch el.asm
++	make
++else
++	exit 1
++fi
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..d3d92e4
+index 0000000..13188ed
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1386 @@
+@@ -0,0 +1,1397 @@
 +* HDB-DOS/16K: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -236,7 +256,7 @@ index 0000000..d3d92e4
 +AMERICLOCK	EQU 60
 +
 +		ORG $E000
-+		* BRA INIT16K		* UNCOMMENT IF PUTTING STUFF
++		* BRA INIT16K
 +
 +INIT16K		PSHS A,B,X,Y,U
 +
@@ -291,6 +311,8 @@ index 0000000..d3d92e4
 +		LBSR PRINTSTR
 +		LDX #SIGNON
 +		LBSR PRINTSTR
++		LDX #BUILDMSG
++		LBSR PRINTSTR
 +
 +		LDY USRADR		* POINT TO START OF USR ARRAY +8 WORDS
 +		LEAY 16,Y
@@ -323,22 +345,6 @@ index 0000000..d3d92e4
 +
 +		PULS A,B,X,Y,U,PC
 +
-+SET64COLS	PSHS A,B
-+		BSR PMODE4
-+		LDA #1
-+		STA TEXTMODE
-+		LDD #CHARSET64
-+		STD FONTLOCATION
-+		PULS A,B,PC
-+
-+SET51COLS	PSHS A,B
-+		BSR PMODE4
-+		CLRA
-+		STA TEXTMODE
-+		LDD #CHARSET51
-+		STD FONTLOCATION
-+		PULS A,B,PC
-+
 +PMODE4		LDA #4
 +		STA PMODE
 +		LDA GRPRAM
@@ -348,6 +354,22 @@ index 0000000..d3d92e4
 +		LDA #$20
 +		STA HORBYT
 +		RTS
++
++SET51COLS	PSHS A,B
++		BSR PMODE4
++		CLRA
++		STA TEXTMODE
++		LDD #CHARSET51
++		STD FONTLOCATION
++		PULS A,B,PC
++
++SET64COLS	PSHS A,B
++		BSR PMODE4
++		LDA #1
++		STA TEXTMODE
++		LDD #CHARSET64
++		STD FONTLOCATION
++		PULS A,B,PC
 +
 +*
 +* MACROS
@@ -1007,7 +1029,7 @@ index 0000000..d3d92e4
 +* 		JMP	L880E
 +* NOAMPERSAND	RTS
 +
-+* ERROR HANDLING RAM HOOK 1 - STORE ERROR INFORMATION
++* ERROR HANDLING RAM HOOK
 +
 +CACHAVEC17	STB	ERRNO
 +		PSHS	D
@@ -1016,22 +1038,31 @@ index 0000000..d3d92e4
 +
 +		PSHS	X
 +		LDX	CURLIN
-+		LEAX	1,X
-+		BEQ	NOONERRACTIVE
-+		LDX	ONERRTARGET
-+		BEQ	NOONERRACTIVE
++		LEAX	1,X			DIRECT MODE?
++		BEQ	NOONERRACTIVE		HANDLE ERROR NORMALLY
++		LDX	ONERRTARGET		ONERR NOT SET?
++		BEQ	NOONERRACTIVE		HANDLE ERROR NORMALLY
 +
-+* WHY DOES THIS CRASH EVERYTHING?
-+
-+*		CMPB	#3*2			OUT OF DATA ERROR?
-+*		BNE	NORESTOREINPPTR
-+*		LDD	BINVAL
-+*		STD	CHARAD
++		LDB	3,S
++		CMPB	#3*2			OUT OF DATA ERROR?
++		BNE	NORESTOREINPPTR
++		LDD	BINVAL
++		STD	CHARAD
 +NORESTOREINPPTR STX	BINVAL
-+		PULS	X
-+		PULS	D
-+		LEAS	2,S
-+		JMP	LAEA4+5
++
++		LDS	FRETOP			REINITIALIZE STACK
++		LDD	#LADC4			SET COMMAND LOOP AS RETURN ADDR
++		PSHS	D
++		JSR	LAEEB			MOVE CURLIN TO START OF NEXT LINE
++		LEAX	1,X
++		LDD	BINVAL
++		CMPD	CURLIN
++		BHI	ONERRLINELATER
++		LDX	TXTTAB			IF TARGET LINE IS LOWER, SEARCH FROM START
++ONERRLINELATER	JSR	LAD05			PERFORM LINE NUMBER SEARCH
++		BCS	BADONERRLINE
++		JMP	LAEBB			RUN BASIC PROGRAM FROM THERE
++BADONERRLINE	JMP	LAED2			UNDEFINED LINE NUMBER
 +
 +NOONERRACTIVE	PULS	X
 +		PULS	D
@@ -3627,7 +3658,7 @@ index 0000000..4447325
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..050a0f0 100644
+index c3c1878..9063397 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -3779,6 +3810,15 @@ index c3c1878..050a0f0 100644
                 ENDC      
                 fcb       $20
                 IFDEF     IDE
+@@ -5259,7 +5299,7 @@ SIGNON         fcc       "HDB-DOS "
+                fcc       " ON DRAGON"
+                ENDC
+ *	fcc	" (C) 2002 AE"
+-               fcb       CR,CR
++               fcb       CR
+                fcb       STOP2
+ 
+ * Canned command for read, drive 0, track 0, sector 1
 @@ -5288,13 +5328,13 @@ C@             jmp       XVEC3               Console out
  * Source code reproduced from Rainbow - October 1984
  
@@ -3796,7 +3836,7 @@ index c3c1878..050a0f0 100644
                 ldx       7,s                 Where are we coming from?
                 cmpx      #LA39A+3            The idle loop?
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5399,6 +5439,14 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5399,6 +5439,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  
@@ -3804,6 +3844,7 @@ index c3c1878..050a0f0 100644
 +
                 fill      $39,MAGICDG+$2000-*
 +               USE       el.asm
++               USE       buildmsg.asm
 +ZZLAST16       equ       *-1                 Cannot be > $FEFF!
 +               fill      $4A,MAGICDG+$4000-*
 +               ELSE
@@ -3813,7 +3854,7 @@ index c3c1878..050a0f0 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..a783024
+index 0000000..d525c6e
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,18 @@
@@ -3827,7 +3868,7 @@ index 0000000..a783024
 +done
 +cp README-16K.txt "$_tmpdir" && \
 +cd .. && \
-+git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh
++git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh
 +git diff origin/HEAD >"$_tmpdir/hdbdos-16k.patch" && \
 +cd "$_tmpdir" && \
 +_zipname=hdbdos-16k.`date +"%Y%m%d.%H%M%S"`.zip && \

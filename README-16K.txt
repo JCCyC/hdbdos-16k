@@ -49,6 +49,8 @@ TO DO:
 WIP:
 
 - ON ERR
+  - Error trapping works, now to implement the ONERR statement and save
+    the BASIC line in which ONERR was executed
 
 
 SUMMARY OF CHANGES:
