@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16K, applies cleanly to
-                          ToolShed GitHub repository as of May 26, 2025
+                          ToolShed GitHub repository as of May 31, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -97,3 +97,5 @@ hdbdos/font51.asm
 hdbdos/font64.asm
 hdbdos/mk16kpackage.sh
 hdbdos/mkslacklist.sh
+hdbdos/build-hdbdos-16k.sh
+hdbdos/buildmsg.asm

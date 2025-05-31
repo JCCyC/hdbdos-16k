@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..f1785cd
+index 0000000..5c492ae
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,101 @@
 +Package contents:
 +
 +- ROMs:
@@ -140,7 +140,7 @@ index 0000000..f1785cd
 +
 +- Patch:
 +hdbdos-16k.patch          Changes to generate HDB-DOS/16K, applies cleanly to
-+                          ToolShed GitHub repository as of May 26, 2025
++                          ToolShed GitHub repository as of May 31, 2025
 +                          (https://github.com/nitros9project/toolshed)
 +
 +README.txt                This file
@@ -210,6 +210,8 @@ index 0000000..f1785cd
 +hdbdos/font64.asm
 +hdbdos/mk16kpackage.sh
 +hdbdos/mkslacklist.sh
++hdbdos/build-hdbdos-16k.sh
++hdbdos/buildmsg.asm
 diff --git a/hdbdos/build-hdbdos-16k.sh b/hdbdos/build-hdbdos-16k.sh
 new file mode 100755
 index 0000000..781f52b
@@ -228,6 +230,14 @@ index 0000000..781f52b
 +else
 +	exit 1
 +fi
+diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
+new file mode 100644
+index 0000000..9c2560e
+--- /dev/null
++++ b/hdbdos/buildmsg.asm
+@@ -0,0 +1,2 @@
++BUILDMSG        FCC 'Build 2025-05-31 07:45:21'
++                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
 index 0000000..13188ed
@@ -3658,7 +3668,7 @@ index 0000000..4447325
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..9063397 100644
+index c3c1878..f82891b 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -3765,17 +3775,19 @@ index c3c1878..9063397 100644
  HDBHI          fcb       $00                 HDB-DOS Offset hi-byte
  HDBLO          fdb       $0000               HDB-DOS Offset lo-word
  
-@@ -3839,6 +3868,9 @@ DEFID          fcb       0
+@@ -3839,6 +3868,11 @@ DEFID          fcb       0
  
  HDINIT         ldx       #SIGNON-1           Point to sign-on
                 lbsr      PRINT2              Print it
 +               IFDEF     ROM16K
++               lda       #13
++               jsr       PUTCHR
 +               jsr       $E000
 +               ENDC
  
                 ldd       #(9*256)+0          Write 9 bytes of 0...
                 ldx       #INTFLG             ...Into our RAM (clear it)
-@@ -4692,6 +4724,7 @@ a@             decb                          Count it down
+@@ -4692,6 +4726,7 @@ a@             decb                          Count it down
  
  * Set directory size by screen width
  
@@ -3783,7 +3795,7 @@ index c3c1878..9063397 100644
  SETSIZ         lda       <$E7                Get screen mode
                 suba      #2                  WIDTH 80?
                 beq       COL5                Yes, do 5 columns
-@@ -4702,6 +4735,7 @@ SETSIZ         lda       <$E7                Get screen mode
+@@ -4702,6 +4737,7 @@ SETSIZ         lda       <$E7                Get screen mode
                 fcb       SKIP2               Skip lda #5
  COL5           lda       #5                  Five columns
                 sta       DIR1                Store in temp RAM
@@ -3791,7 +3803,7 @@ index c3c1878..9063397 100644
  
  * Break DIR into columns
  
-@@ -5187,10 +5221,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
+@@ -5187,10 +5223,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
  
  * Main Sign-On Message And Copyright Notice
  
@@ -3810,16 +3822,19 @@ index c3c1878..9063397 100644
                 ENDC      
                 fcb       $20
                 IFDEF     IDE
-@@ -5259,7 +5299,7 @@ SIGNON         fcc       "HDB-DOS "
+@@ -5259,7 +5301,11 @@ SIGNON         fcc       "HDB-DOS "
                 fcc       " ON DRAGON"
                 ENDC
  *	fcc	" (C) 2002 AE"
--               fcb       CR,CR
++               IFDEF     ROM16K
 +               fcb       CR
++               ELSE
+                fcb       CR,CR
++               ENDC
                 fcb       STOP2
  
  * Canned command for read, drive 0, track 0, sector 1
-@@ -5288,13 +5328,13 @@ C@             jmp       XVEC3               Console out
+@@ -5288,13 +5334,13 @@ C@             jmp       XVEC3               Console out
  * Source code reproduced from Rainbow - October 1984
  
  FLEXKY         lda       <$6F                Get device number
@@ -3836,7 +3851,7 @@ index c3c1878..9063397 100644
                 ldx       7,s                 Where are we coming from?
                 cmpx      #LA39A+3            The idle loop?
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5399,6 +5439,15 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5399,6 +5445,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  
@@ -3854,7 +3869,7 @@ index c3c1878..9063397 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..d525c6e
+index 0000000..3a20e79
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,18 @@
@@ -3868,7 +3883,7 @@ index 0000000..d525c6e
 +done
 +cp README-16K.txt "$_tmpdir" && \
 +cd .. && \
-+git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh
++git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh hdbdos/buildmsg.asm
 +git diff origin/HEAD >"$_tmpdir/hdbdos-16k.patch" && \
 +cd "$_tmpdir" && \
 +_zipname=hdbdos-16k.`date +"%Y%m%d.%H%M%S"`.zip && \
