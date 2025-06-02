@@ -46,19 +46,13 @@ TO DO:
 - Create a BIN$ function (nobody cares about OCT$)
 
 
-WIP:
-
-- ON ERR
-  - Error trapping works, now to implement the ONERR statement and save
-    the BASIC line in which ONERR was executed
-
-
 SUMMARY OF CHANGES:
 
 - All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
   garbled upon loading
 - 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
-- LOCATE works as expected - works in the 32x16 screen too, unlike the CoCo3
+- LOCATE works as expected
+  - Works in the 32x16 screen too, unlike the CoCo 3
 - Support for BUTTON function including 2nd joystick button (requires internal
   wiring; testers welcome)
 - DIR output uses available screen width
@@ -83,9 +77,9 @@ SUMMARY OF CHANGES:
   - Also, these notations can yield values up to 2^32-1
   - Ancient bug in &O (accepted 8 as a digit) fixed
 - Conversely, HEX$ now accepts values up to 2^32-1
-- ERNO and ERLIN - not much use until ONERR works
-  - Differently from the CoCo 3, they can be examined in direct mode after
-    the BASIC program ends.
+- ONERR, ERNO, and ERLIN work as expected
+  - Differently from the CoCo 3, ERNO and ERLIN can be examined in direct mode
+    after the BASIC program ends.
 
 
 ADDED FILES:
