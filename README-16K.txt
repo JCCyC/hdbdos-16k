@@ -26,8 +26,8 @@ Package contents:
                           the above ROMs
 
 - Patch:
-hdbdos-16k.patch          Changes to generate HDB-DOS/16K, applies cleanly to
-                          ToolShed GitHub repository as of May 31, 2025
+hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
+                          ToolShed GitHub repository as of Jun 2, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file

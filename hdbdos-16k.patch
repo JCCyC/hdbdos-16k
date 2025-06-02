@@ -107,7 +107,7 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..3dc5043
+index 0000000..97a543b
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
 @@ -0,0 +1,95 @@
@@ -139,8 +139,8 @@ index 0000000..3dc5043
 +                          the above ROMs
 +
 +- Patch:
-+hdbdos-16k.patch          Changes to generate HDB-DOS/16K, applies cleanly to
-+                          ToolShed GitHub repository as of May 31, 2025
++hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
++                          ToolShed GitHub repository as of Jun 2, 2025
 +                          (https://github.com/nitros9project/toolshed)
 +
 +README.txt                This file
@@ -226,19 +226,19 @@ index 0000000..781f52b
 +fi
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..78669f1
+index 0000000..5005690
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-02 01:58:33'
++BUILDMSG        FCC 'Build 2025-06-02 09:50:09'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..90f7fdb
+index 0000000..04cc84b
 --- /dev/null
 +++ b/hdbdos/el.asm
 @@ -0,0 +1,1464 @@
-+* HDB-DOS/16K: Additions and Enhancements to HDB-DOS
++* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
 +* This program is free software: you can redistribute it and/or modify
@@ -1418,7 +1418,7 @@ index 0000000..90f7fdb
 +		BRA	GOGIVABF
 +HPOINTNOT02	CMPD	#3
 +		BNE	HPONITNOT03
-+USR8FUNC	LDD	#DATAAREA16	HPOINT(3) - HDB-DOS/16K VARIABLE AREA ADDRESS
++USR8FUNC	LDD	#DATAAREA16	HPOINT(3) - HDB-DOS/16 VARIABLE AREA ADDRESS
 +		BRA	GOGIVABF
 +HPONITNOT03	CMPD	#4
 +		LBNE	GOFCERR
@@ -3930,7 +3930,7 @@ index c3c1878..f82891b 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..3a20e79
+index 0000000..45be7c4
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,18 @@
@@ -3951,7 +3951,7 @@ index 0000000..3a20e79
 +zip "../$_zipname" * >/dev/null && \
 +cd .. && \
 +rm -rf "$_tmpdir" && \
-+echo "HDB-DOS/16K package '/tmp/$_zipname' generated"
++echo "HDB-DOS/16 package '/tmp/$_zipname' generated"
 diff --git a/hdbdos/mkslacklist.sh b/hdbdos/mkslacklist.sh
 new file mode 100755
 index 0000000..c5a463d
