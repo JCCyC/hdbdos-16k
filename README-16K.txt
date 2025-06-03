@@ -80,7 +80,10 @@ SUMMARY OF CHANGES:
 - ONERR, ERNO, and ERLIN work as expected
   - Differently from the CoCo 3, ERNO and ERLIN can be examined in direct mode
     after the BASIC program ends.
-
+- LPEEK and LPOKE work like PEEK and POKE but arguments are 16-bit unsigned
+  integers, i.e., they affect addresses A and A+1. Example: LPEEK(&H68)
+  returns the line number of the running BASIC program -- previously you needed
+  to use 256*PEEK(&H68)+PEEK(&H69).
 
 ADDED FILES:
 
