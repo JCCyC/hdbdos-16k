@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..97a543b
+index 0000000..ad05289
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,102 @@
 +Package contents:
 +
 +- ROMs:
@@ -193,6 +193,13 @@ index 0000000..97a543b
 +- ONERR, ERNO, and ERLIN work as expected
 +  - Differently from the CoCo 3, ERNO and ERLIN can be examined in direct mode
 +    after the BASIC program ends.
++- LPEEK and LPOKE work like PEEK and POKE but arguments are 16-bit unsigned
++  integers, i.e., they affect addresses A and A+1. Example: LPEEK(&H68)
++  returns the line number of the running BASIC program -- previously you needed
++  to use 256*PEEK(&H68)+PEEK(&H69).
++  - Additionally, both have now a block copy syntax: LPEEK$(A,N) returns a
++    string with N characters with a copy of memory at address A. Likewise,
++    LPOKE A,X$ pokes all characters of X$ consecutively starting at address A.
 +
 +
 +ADDED FILES:
@@ -226,18 +233,18 @@ index 0000000..781f52b
 +fi
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..e972768
+index 0000000..46bf8f6
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-03 19:42:43'
++BUILDMSG        FCC 'Build 2025-06-04 14:54:38'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..e46c8d8
+index 0000000..3f9110c
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1456 @@
+@@ -0,0 +1,1497 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1540,6 +1547,8 @@ index 0000000..e46c8d8
 +		BEQ	ERNO
 +		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERLIN
 +		BEQ	ERLIN
++		CMPB	#($A8-$80)*2	MODIFIED TOKEN FOR LPEEK
++		LBEQ	LPEEK
 +		JMP	L8168		IF NOT ONE OF OUR FUNCTIONS, GO TO EXBAS HANDLER
 +
 +* ALTERED COMMAND HANDLERS
@@ -1635,17 +1644,56 @@ index 0000000..e46c8d8
 +		RTS
 +GOSNERR2	JMP	LB277
 +
-+* LPOKE SHOULD IMPLEMENT LPOKE ADDR,<16BIT-WORD> AND LPOKE ADDR,<STR>
-+
 +LPOKE		JSR	LB73D		GET ADDR
 +		PSHS	X
 +		JSR	LB26D		CHECK COMMA
-+		JSR	LB73D		GET WORD VALUE
-+		PULS	U
-+		STX	,U
++		JSR	LB156		GET VALUE TO BE POKED
++		TST	VALTYP		CHECK TYPE
++		BPL	LPOKENUM	BRANCH IF NUMERIC LPOKE
++		JSR	LB686		STRING LPOKE: GET ADDR, LEN
++		PULS	U		RECOVER ADDR
++		BEQ	ZEROSTR
++LPOKESTRLOOP	LDA	,X+		POKE THE STRING`S BYTES
++		STA	,U+
++		DECB
++		BNE	LPOKESTRLOOP
++ZEROSTR		RTS
++LPOKENUM	JSR	LB740		NUMERIC LPOKE: GET 16-BIT VALUE
++		PULS	U		RECOVER ADDR
++		STX	,U		LPOKE IT
 +		RTS
 +
-+LPEEK		JSR	LB740		CONVERT NUMERIC ARG INTO X
++LPEEK		LDX	CHARAD
++		LDA	,X
++		CMPA	#'$		CHECK IF LPEEK$
++		BNE	LPEEKNUM	IF NOT, IT'S LPEEK, I.E. 16-BIT NUMERIC PEEK
++		JSR	GETNCH		GET PAST THE $
++		JSR	LB26A		LPEEK$: CHECK '('
++		JSR	LB73D		GET ADDR
++		PSHS	X
++		JSR	LB26D		CHECK COMMA
++		JSR	LB70B		GET LENGTH
++		PSHS	B		SAVE LENGTH
++		JSR	LB267		CHECK ')'
++		LDB	,S
++		JSR	LB56D		RESERVE ACCB BYTES IN STRING SPACE
++		JSR	LB511		SAVE RESERVED STRING DESCRIPTOR IN TEMP DESCRIPTOR
++		LDB	,S
++		TSTB
++		BEQ	LPEEKSTRNULLL
++		LDU	1,S		GET SOURCE ADDRESS
++		LDB	,S
++LPEEKCOPY	LDA	,U+
++		STA	,X+
++		DECB
++		BNE	LPEEKCOPY
++LPEEKSTRNULLL	LEAS	3,S
++		JMP	LB54C		RETURN NEW STRING
++LPEEKNUM	JSR	LB26A		LPEEK: CHECK '('
++		JSR	LB73D		GET ADDR
++		PSHS	X
++		JSR	LB267		CHECK ')'
++		PULS	X
 +		LDX	,X
 +		CLRA
 +		CLRB

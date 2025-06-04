@@ -84,6 +84,10 @@ SUMMARY OF CHANGES:
   integers, i.e., they affect addresses A and A+1. Example: LPEEK(&H68)
   returns the line number of the running BASIC program -- previously you needed
   to use 256*PEEK(&H68)+PEEK(&H69).
+  - Additionally, both have now a block copy syntax: LPEEK$(A,N) returns a
+    string with N characters with a copy of memory at address A. Likewise,
+    LPOKE A,X$ pokes all characters of X$ consecutively starting at address A.
+
 
 ADDED FILES:
 
