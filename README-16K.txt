@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jun 2, 2025
+                          ToolShed GitHub repository as of Jun 7, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -44,6 +44,8 @@ TO DO:
   - Create a XOR operator
 - Support for text-mode inverse video and (in the 6847T1) lowercase
 - Create a BIN$ function (nobody cares about OCT$)
+- VAL(GOTO nnn) so we can obtain a renumerable line number
+- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 
 
 SUMMARY OF CHANGES:
@@ -51,6 +53,10 @@ SUMMARY OF CHANGES:
 - All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
   garbled upon loading
 - 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
+  - PRINT@ works as expected, with the maximum position being 1223 in 51x24
+    mode and 1535 in 64x24 mode
+  - The charset defined in ROM is ISO-8859-15, although it`s possible to
+    redefine it with HSET MEM COPY and HPOINT(5) (see below)
 - LOCATE works as expected
   - Works in the 32x16 screen too, unlike the CoCo 3
 - Support for BUTTON function including 2nd joystick button (requires internal
@@ -70,6 +76,9 @@ SUMMARY OF CHANGES:
     cocoroms/rom16kvars.asm
   - HPOINT(4) returns the frequency of timer interrupts - 50 for PAL, 60 for
     NTSC - this is the value you need to divide TIMER/TIMERL by to get seconds
+  - HPOINT(5) returns the address of the graphics-mode text font - 896 bytes
+    for the 51-column version, followed by another 896 bytes for the "thin"
+    (64-column) version
 - BASIC printer output redirected to DriveWire virtual printer (experimental),
   now with a flag in the aforementioned data area to disable redirection,
   still with no BASIC interface to control it

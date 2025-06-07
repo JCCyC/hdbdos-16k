@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..ad05289
+index 0000000..0610002
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,102 @@
+@@ -0,0 +1,111 @@
 +Package contents:
 +
 +- ROMs:
@@ -140,7 +140,7 @@ index 0000000..ad05289
 +
 +- Patch:
 +hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-+                          ToolShed GitHub repository as of Jun 2, 2025
++                          ToolShed GitHub repository as of #TODAY#
 +                          (https://github.com/nitros9project/toolshed)
 +
 +README.txt                This file
@@ -157,6 +157,8 @@ index 0000000..ad05289
 +  - Create a XOR operator
 +- Support for text-mode inverse video and (in the 6847T1) lowercase
 +- Create a BIN$ function (nobody cares about OCT$)
++- VAL(GOTO nnn) so we can obtain a renumerable line number
++- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 +
 +
 +SUMMARY OF CHANGES:
@@ -164,6 +166,10 @@ index 0000000..ad05289
 +- All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
 +  garbled upon loading
 +- 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
++  - PRINT@ works as expected, with the maximum position being 1223 in 51x24
++    mode and 1535 in 64x24 mode
++  - The charset defined in ROM is ISO-8859-15, although it`s possible to
++    redefine it with HSET MEM COPY and HPOINT(5) (see below)
 +- LOCATE works as expected
 +  - Works in the 32x16 screen too, unlike the CoCo 3
 +- Support for BUTTON function including 2nd joystick button (requires internal
@@ -183,6 +189,9 @@ index 0000000..ad05289
 +    cocoroms/rom16kvars.asm
 +  - HPOINT(4) returns the frequency of timer interrupts - 50 for PAL, 60 for
 +    NTSC - this is the value you need to divide TIMER/TIMERL by to get seconds
++  - HPOINT(5) returns the address of the graphics-mode text font - 896 bytes
++    for the 51-column version, followed by another 896 bytes for the "thin"
++    (64-column) version
 +- BASIC printer output redirected to DriveWire virtual printer (experimental),
 +  now with a flag in the aforementioned data area to disable redirection,
 +  still with no BASIC interface to control it
@@ -215,36 +224,46 @@ index 0000000..ad05289
 +hdbdos/buildmsg.asm
 diff --git a/hdbdos/build-hdbdos-16k.sh b/hdbdos/build-hdbdos-16k.sh
 new file mode 100755
-index 0000000..781f52b
+index 0000000..a5eb381
 --- /dev/null
 +++ b/hdbdos/build-hdbdos-16k.sh
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,22 @@
 +#!/bin/bash
-+cd `dirname "$0"`
++cd "`dirname $0`"
++if [ ! -d ../../hdbdos-16k ]; then
++	echo HDB-DOS/16 repository not found >&2
++	exit 1
++fi
++if [ ! -f el.asm ]; then
++	echo HDB-DOS/16 code not found >&2
++	exit 2
++fi
++
 +{
 +	date +"BUILDMSG        FCC 'Build %Y-%m-%d %H:%M:%S'"
 +	echo "                FCB 13,13,0"
 +} >buildmsg.asm
-+if [ -f el.asm ]; then
-+	touch el.asm
-+	make
-+else
-+	exit 1
-+fi
++
++touch el.asm && \
++make && \
++./mk16kpackage.sh && \
++cd ../../hdbdos-16k && \
++echo "You may now commit your changes from '`pwd`'"
++exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..46bf8f6
+index 0000000..6b97b71
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-04 14:54:38'
++BUILDMSG        FCC 'Build 2025-06-07 13:47:09'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..3f9110c
+index 0000000..b5256b5
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1497 @@
+@@ -0,0 +1,1551 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1405,10 +1424,16 @@ index 0000000..3f9110c
 +USR8FUNC	LDD	#DATAAREA16	HPOINT(3) - HDB-DOS/16 VARIABLE AREA ADDRESS
 +		BRA	GOGIVABF
 +HPONITNOT03	CMPD	#4
-+		LBNE	GOFCERR
++		BNE	HPOINTNOT04
 +		CLRA			HPOINT(4) - TIMER IRQ FREQUENCY
 +		LDB	TICKSPERSEC
 +		BRA	GOGIVABF
++HPOINTNOT04	CMPD	#5
++		LBNE	GOFCERR
++		LDX	#CHARSET51	HPOINT(5) - GRAPHICS MODE ROM FONT ADDRESS
++		CLRA
++		CLRB
++		JMP	GIVABXF
 +
 +JOYBUTMASK	FCB	1,4,2,8
 +BUTTON		JSR	INTCNV
@@ -1699,6 +1724,54 @@ index 0000000..3f9110c
 +		CLRB
 +		JMP	GIVABXF
 +
++* RAM VECTOR HOOKING WON'T FIX PRINT@ FOR GRAPHICS MODE,
++* GOTTA INSTALL A NEW COMMAND HANDLER FOR PRINT
++
++H16PRINT	LBEQ	LB958		NO ARGS: GOT TO CB TO PRINT CR
++		CMPA	#'@		PRINT@: WE NEED TO HANDLE IT
++		LBNE	PRINT+2		NOT PRINT@, HANDLE IT IN CB ROM
++
++		JSR	TSTHIRES
++		LBNE	PRINT+2		PRINT@ BUT WE'RE IN TEXT MODE: ROM
++
++		JSR	LB3E4		GET LINEAR CURSOR POSITION IN ACCD
++		TFR	D,X
++		TST	TEXTMODE
++		BNE	WIDTH51CHARS64
++		LDB	#51
++		CMPX	#1224		51 TIMES 24
++		BRA	COMPAREDPOS
++WIDTH51CHARS64	LDB	#64
++		CMPX	#1536		64 TIMES 24
++COMPAREDPOS	LBHS	LB44A		OUT OF SCREEN BOUNDS: FC ERROR
++		CMPB	#64		IF IN 64 COLUMN MODE
++		BEQ	EASYLOCATE	OUR LIFE IS WAY WAY EASIER
++
++		TFR	X,D		DIVISION BY SUCESSIVE MULTIPLICATIONS
++		CLR	CURY            IS KINDA, SORTA ACCEPTABLE HERE
++SUBONELINE	SUBD	#51             BECAUSE WE'LL LOOP AT MOST 24 TIMES
++		BCS	OUTOFLINES
++		INC	CURY
++		BRA	SUBONELINE
++OUTOFLINES	ADDB	#51
++		STB	CURX
++		BRA	GOPRINTFROMAT
++
++EASYLOCATE	TFR	X,D
++		ANDB	#63
++		STB	CURX
++		TFR	X,D
++		LSLB
++		ROLA
++		LSLB
++		ROLA
++		STA	CURY
++
++GOPRINTFROMAT	JSR	LB911
++		CLR	DEVNUM
++		RTS
++
++
 +* ALTERED DISPATCH TABLE FOR COLOR BASIC PRIMARY COMMANDS
 +NEWBASDISPATCH	FDB	FOR			FOR 80
 +		FDB	GO			GO 81
@@ -1707,7 +1780,7 @@ index 0000000..3f9110c
 +		FDB	REM			ELSE 84
 +		FDB	IFTOK			IF 85
 +		FDB	DATA			DATA 86
-+		FDB	PRINT			PRINT 87
++		FDB	H16PRINT		PRINT 87
 +		FDB	H16ON			ON 88
 +		FDB	INPUT			INPUT 89
 +		FDB	ENDTOK			END 8A
@@ -3769,7 +3842,7 @@ index 0000000..4447325
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..f82891b 100644
+index c3c1878..290a4d2 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -3802,7 +3875,7 @@ index c3c1878..f82891b 100644
  VMAJOR         equ       1
  VMINOR         equ       5
 +	IFDEF ROM16K
-+VREV           equ       4
++VREV           equ       5
 +	ELSE
  VREV           equ       0
 +	ENDC
@@ -3970,10 +4043,10 @@ index c3c1878..f82891b 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..45be7c4
+index 0000000..f6fa927
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,25 @@
 +#!/bin/bash
 +cd `dirname $0`
 +_tmpdir="/tmp/hdbdos16k.$$.`date +%s`"
@@ -3982,10 +4055,17 @@ index 0000000..45be7c4
 +for romname in $_16kroms; do
 +	cp 16k-$romname.rom 16k-$romname.rom.lst "$_tmpdir" || exit 2
 +done
++
++_today=`date +"%b%e, %Y"`
++_today="${_today^}"
++
 +cp README-16K.txt "$_tmpdir" && \
++sed -i "s/#TODAY#/$_today/" "$_tmpdir/README-16K.txt" && \
 +cd .. && \
 +git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh hdbdos/buildmsg.asm
 +git diff origin/HEAD >"$_tmpdir/hdbdos-16k.patch" && \
++[ -d ../hdbdos-16k ] && cp "$_tmpdir/hdbdos-16k.patch" ../hdbdos-16k/ && \
++[ -d ../hdbdos-16k ] && cp "$_tmpdir/README-16K.txt" ../hdbdos-16k/ && \
 +cd "$_tmpdir" && \
 +_zipname=hdbdos-16k.`date +"%Y%m%d.%H%M%S"`.zip && \
 +zip "../$_zipname" * >/dev/null && \
