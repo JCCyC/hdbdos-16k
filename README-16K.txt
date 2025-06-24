@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jun 7, 2025
+                          ToolShed GitHub repository as of Jun24, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -46,6 +46,7 @@ TO DO:
 - Create a BIN$ function (nobody cares about OCT$)
 - VAL(GOTO nnn) so we can obtain a renumerable line number
 - TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
+- Manipulate the sector offset (HDBHI/HDBLO)
 
 
 SUMMARY OF CHANGES:
@@ -55,7 +56,7 @@ SUMMARY OF CHANGES:
 - 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
   - PRINT@ works as expected, with the maximum position being 1223 in 51x24
     mode and 1535 in 64x24 mode
-  - The charset defined in ROM is ISO-8859-15, although it`s possible to
+  - The charset defined in ROM is ISO-8859-15, although it's possible to
     redefine it with HSET MEM COPY and HPOINT(5) (see below)
 - LOCATE works as expected
   - Works in the 32x16 screen too, unlike the CoCo 3
