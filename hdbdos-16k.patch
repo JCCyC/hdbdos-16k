@@ -4044,7 +4044,7 @@ index c3c1878..290a4d2 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..f6fa927
+index 0000000..02d5d15
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,25 @@
@@ -4057,7 +4057,7 @@ index 0000000..f6fa927
 +	cp 16k-$romname.rom 16k-$romname.rom.lst "$_tmpdir" || exit 2
 +done
 +
-+_today=`date +"%b%e, %Y"`
++_today=`date +"%b %d, %Y"`
 +_today="${_today^}"
 +
 +cp README-16K.txt "$_tmpdir" && \

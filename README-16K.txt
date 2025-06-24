@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jun24, 2025
+                          ToolShed GitHub repository as of Jun 24, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
