@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..7f323f6
+index 0000000..1f36a74
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,112 @@
 +Package contents:
 +
 +- ROMs:
@@ -161,11 +161,6 @@ index 0000000..7f323f6
 +- Manipulate the sector offset (HDBHI/HDBLO)
 +
 +
-+WIP:
-+
-+- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
-+
-+
 +SUMMARY OF CHANGES:
 +
 +- All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
@@ -181,6 +176,7 @@ index 0000000..7f323f6
 +  wiring; testers welcome)
 +- DIR output uses available screen width
 +- TIMERL function similar to TIMER but wraps at 2^32 (2 years, 98.5 days)
++- TIMER FOR N waits N seconds (N may be a fraction: TIMER FOR 1.5 waits 1.5s)
 +- HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
 +  switch to RAM and ROM respectively
 +- HSET COLOR 1 sets text screen to orange; HSET COLOR 0 sets it back to green.
@@ -257,18 +253,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..ae10194
+index 0000000..aa33456
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-30 13:38:36'
++BUILDMSG        FCC 'Build 2025-06-30 20:30:31'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..9bf74ef
+index 0000000..089c736
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1608 @@
+@@ -0,0 +1,1599 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1597,8 +1593,8 @@ index 0000000..9bf74ef
 +
 +* DOESN'T WORK AND I DON'T KNOW WHY
 +
-+#		CMPA	#$80		CHECK FOR "TIMER FOR X" STATEMENT
-+#		BEQ	TIMERFORSTMT
++		CMPA	#$80		CHECK FOR "TIMER FOR X" STATEMENT
++		BEQ	TIMERFORSTMT
 +
 +		JMP	L8960+2		IF NO, JUST DEFER TO ECB
 +
@@ -1627,50 +1623,41 @@ index 0000000..9bf74ef
 +		ORA	#$80
 +		BRA	GETLSW32BITS
 +
-+TIMERFORSTMT	COM	$400
-+
-+		JSR	GETNCH
++TIMERFORSTMT	JSR	GETNCH
 +		JSR	LB141		EVALUATE NUMERIC EXPRESSION INTO FPA0
 +		LDA	TICKSPERSEC
-+		LDX	FPNUM50
++		LDX	#FPNUM50
 +		CMPA	#50
 +		BEQ	IS50HZ
-+		LDX	FPNUM60
++		LDX	#FPNUM60
 +IS50HZ		JSR	LBACA		MULTIPLY ARGUMENT BY CLOCK IRQ FREQ
 +		BSR	GETABXFROMFPA0
-+
 +		EXG	D,X
 +		PSHS	CC
 +		ORCC	#IntMasks
-+
 +		ADDD	TIMVAL
 +		PSHS	D
-+
-+		STD	$404
-+
 +		TFR	X,D
 +		ADCB	TIMVALMSW+1
 +		ADCA	TIMVALMSW
-+
-+		STD	$402
-+
 +		ANDCC	#$FF-IntMasks
 +		PSHS	D
-+
-+		COM	$401
-+
-+		* WAIT UNTIL 32-BIT TIMER REACHES VALUE AT [,S-3,S]
-+
-+DIDNTREACH	ORCC	#IntMasks
-+		LDD	TIMVAL
++		LDB	TIMVAL
++		PSHS	B
++TIMERFORLOOP	CMPB	,S
++		BEQ	NOBRKCHK
++		STB	,S
++		JSR	LADEB		BREAK CHECK EVERY TIMER TICK
++NOBRKCHK	ORCC	#IntMasks	WAIT UNTIL 32-BIT TIMER
++		LDD	TIMVAL		REACHES VALUE AT [1,S-4,S]
 +		LDX	TIMVALMSW
 +		ANDCC	#$FF-IntMasks
-+		CMPD	2,S
-+		BNE	DIDNTREACH
-+		CMPX	,S
-+		BNE	DIDNTREACH
++		CMPD	3,S
++		BNE	TIMERFORLOOP
++		CMPX	1,S
++		BNE	TIMERFORLOOP
 +
-+		LEAS	4,S
++		LEAS	5,S
 +		PULS	CC,PC
 +
 +

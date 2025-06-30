@@ -48,11 +48,6 @@ TO DO:
 - Manipulate the sector offset (HDBHI/HDBLO)
 
 
-WIP:
-
-- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
-
-
 SUMMARY OF CHANGES:
 
 - All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
@@ -68,6 +63,7 @@ SUMMARY OF CHANGES:
   wiring; testers welcome)
 - DIR output uses available screen width
 - TIMERL function similar to TIMER but wraps at 2^32 (2 years, 98.5 days)
+- TIMER FOR N waits N seconds (N may be a fraction: TIMER FOR 1.5 waits 1.5s)
 - HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
   switch to RAM and ROM respectively
 - HSET COLOR 1 sets text screen to orange; HSET COLOR 0 sets it back to green.
