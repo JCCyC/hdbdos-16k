@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jun 24, 2025
+                          ToolShed GitHub repository as of Jun 30, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -45,8 +45,12 @@ TO DO:
 - Support for text-mode inverse video and (in the 6847T1) lowercase
 - Create a BIN$ function (nobody cares about OCT$)
 - VAL(GOTO nnn) so we can obtain a renumerable line number
-- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 - Manipulate the sector offset (HDBHI/HDBLO)
+
+
+WIP:
+
+- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 
 
 SUMMARY OF CHANGES:

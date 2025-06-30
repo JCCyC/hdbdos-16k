@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..e8d84c0
+index 0000000..7f323f6
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,116 @@
 +Package contents:
 +
 +- ROMs:
@@ -158,8 +158,12 @@ index 0000000..e8d84c0
 +- Support for text-mode inverse video and (in the 6847T1) lowercase
 +- Create a BIN$ function (nobody cares about OCT$)
 +- VAL(GOTO nnn) so we can obtain a renumerable line number
-+- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 +- Manipulate the sector offset (HDBHI/HDBLO)
++
++
++WIP:
++
++- TIMER FOR nnn to wait nnn seconds (possibly a non-integer)
 +
 +
 +SUMMARY OF CHANGES:
@@ -253,18 +257,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..6b97b71
+index 0000000..ae10194
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-07 13:47:09'
++BUILDMSG        FCC 'Build 2025-06-30 13:38:36'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..b5256b5
+index 0000000..9bf74ef
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1551 @@
+@@ -0,0 +1,1608 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1568,7 +1572,7 @@ index 0000000..b5256b5
 +DXIVEC16K	CMPB	#($9F-$80)*2	MODIFIED TOKEN FOR TIMER
 +		BEQ	TIMERL
 +		CMPB	#($9C-$80)*2	MODIFIED TOKEN FOR HEX$
-+		BEQ	HEXDOLBIG
++		LBEQ	HEXDOLBIG
 +		CMPB	#($AB-$80)*2	MODIFIED TOKEN FOR ERNO
 +		BEQ	ERNO
 +		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERLIN
@@ -1588,10 +1592,17 @@ index 0000000..b5256b5
 +* 16K VERSION OF TIMER STATEMENT CHECKS FOR 'L' - CALLED BY ALTERED DXCVEC
 +
 +		JSR	GETNCH		TIMER STATEMENT HANDLER
-+		CMPA	#'L		CHECK FOR TIMERL
-+		LBNE	L8960+2		IF NO, JUST DEFER TO ECB
-+		JSR	GETNCH		GET PAST EQUAL SIGN JUST LIKE ECB DOES
++		CMPA	#'L		CHECK FOR "TIMERL=x" STATEMENT
++		BEQ	TIMERLSTMT
 +
++* DOESN'T WORK AND I DON'T KNOW WHY
++
++#		CMPA	#$80		CHECK FOR "TIMER FOR X" STATEMENT
++#		BEQ	TIMERFORSTMT
++
++		JMP	L8960+2		IF NO, JUST DEFER TO ECB
++
++TIMERLSTMT	JSR	GETNCH		GET PAST EQUAL SIGN JUST LIKE ECB DOES
 +		LDB	#$B3		TOKEN FOR =
 +		JSR	LB26F		DO A SYNTAX CHECK FOR =
 +		BSR	GET32BITARG	PARSE 32-BIT ARG, RETURN IN D:X
@@ -1615,6 +1626,53 @@ index 0000000..b5256b5
 +BIGGERTHAN2G	LDD	FPA0
 +		ORA	#$80
 +		BRA	GETLSW32BITS
++
++TIMERFORSTMT	COM	$400
++
++		JSR	GETNCH
++		JSR	LB141		EVALUATE NUMERIC EXPRESSION INTO FPA0
++		LDA	TICKSPERSEC
++		LDX	FPNUM50
++		CMPA	#50
++		BEQ	IS50HZ
++		LDX	FPNUM60
++IS50HZ		JSR	LBACA		MULTIPLY ARGUMENT BY CLOCK IRQ FREQ
++		BSR	GETABXFROMFPA0
++
++		EXG	D,X
++		PSHS	CC
++		ORCC	#IntMasks
++
++		ADDD	TIMVAL
++		PSHS	D
++
++		STD	$404
++
++		TFR	X,D
++		ADCB	TIMVALMSW+1
++		ADCA	TIMVALMSW
++
++		STD	$402
++
++		ANDCC	#$FF-IntMasks
++		PSHS	D
++
++		COM	$401
++
++		* WAIT UNTIL 32-BIT TIMER REACHES VALUE AT [,S-3,S]
++
++DIDNTREACH	ORCC	#IntMasks
++		LDD	TIMVAL
++		LDX	TIMVALMSW
++		ANDCC	#$FF-IntMasks
++		CMPD	2,S
++		BNE	DIDNTREACH
++		CMPX	,S
++		BNE	DIDNTREACH
++
++		LEAS	4,S
++		PULS	CC,PC
++
 +
 +* 16K VERSION OF HEX$ HANDLES 32-BIT NUMBERS
 +
@@ -1772,6 +1830,9 @@ index 0000000..b5256b5
 +		CLR	DEVNUM
 +		RTS
 +
++* FLOATING POINT CONSTANTS
++FPNUM50		FCB	$86,$48,$00,$00,$00
++FPNUM60		FCB	$86,$70,$00,$00,$00
 +
 +* ALTERED DISPATCH TABLE FOR COLOR BASIC PRIMARY COMMANDS
 +NEWBASDISPATCH	FDB	FOR			FOR 80
