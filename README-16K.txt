@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jul 09, 2025
+                          ToolShed GitHub repository as of Jul 10, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -45,6 +45,8 @@ TO DO:
 - Support for text-mode inverse video and (in the 6847T1) lowercase
 - Create a BIN$ function (nobody cares about OCT$)
 - Manipulate the sector offset (HDBHI/HDBLO)
+- Enhance RENUM so it can renumber the first portion of a program,
+  as opposed to only the second portion like it is currently in ECB
 
 
 SUMMARY OF CHANGES:
