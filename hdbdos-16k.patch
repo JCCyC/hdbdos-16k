@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..1f36a74
+index 0000000..3ebe98e
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,114 @@
 +Package contents:
 +
 +- ROMs:
@@ -157,7 +157,6 @@ index 0000000..1f36a74
 +  - Create a XOR operator
 +- Support for text-mode inverse video and (in the 6847T1) lowercase
 +- Create a BIN$ function (nobody cares about OCT$)
-+- VAL(GOTO nnn) so we can obtain a renumerable line number
 +- Manipulate the sector offset (HDBHI/HDBLO)
 +
 +
@@ -210,6 +209,9 @@ index 0000000..1f36a74
 +  - Additionally, both have now a block copy syntax: LPEEK$(A,N) returns a
 +    string with N characters with a copy of memory at address A. Likewise,
 +    LPOKE A,X$ pokes all characters of X$ consecutively starting at address A.
++- GOTO X may be used as an expression; it simply returns X. Useful for
++  self-documenting programs that can be renumbered. Example:
++  - 10 PRINT"TO CHANGE THE FUNCTION, EDIT LINE";GOTO 500
 +
 +
 +ADDED FILES:
@@ -253,18 +255,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..f6a04bf
+index 0000000..1f09659
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-06-30 21:10:30'
++BUILDMSG        FCC 'Build 2025-07-09 23:28:15'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..089c736
+index 0000000..c53174b
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1599 @@
+@@ -0,0 +1,1637 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -371,6 +373,10 @@ index 0000000..089c736
 +
 +		LDD #NEWBASDISPATCH
 +		STD COMVEC+3
++		IFDEF USECBFUNCS
++		LDD #NEWBASFUNCS
++		STD COMVEC+8
++		ENDC
 +
 +		JSR JCMDS
 +		IFNE STARTGRAPHICS
@@ -967,7 +973,15 @@ index 0000000..089c736
 +		JSR	GETNCH
 +		CMPA	#'&'
 +		BEQ	DOAMPERSAND
-+		JMP	L8852			NEW LABEL IN EXTBAS (NO CODE CHANGE)
++
++		CMPA	#$81			TOKEN FOR GO
++		BNE	EXBASEXP
++		JSR	GETNCH
++		CMPA	#$A5			TOKEN FOR TO
++		BNE	EXBASEXP
++		JMP	,U			SKIP GOTO
++
++EXBASEXP	JMP	L8852			NEW LABEL IN EXTBAS (NO CODE CHANGE)
 +
 +CACHAVEC19	CMPA	#'&'
 +		BNE	NOAMPERSAND
@@ -1575,7 +1589,14 @@ index 0000000..089c736
 +		BEQ	ERLIN
 +		CMPB	#($A8-$80)*2	MODIFIED TOKEN FOR LPEEK
 +		LBEQ	LPEEK
++		CMPB	#($89-$80)*2	MODIFIED TOKEN FOR VAL
++		BEQ	VALH
 +		JMP	L8168		IF NOT ONE OF OUR FUNCTIONS, GO TO EXBAS HANDLER
++
++* VAL GOTO nnn
++
++VALH		COM	$400
++		JMP	L8168
 +
 +* ALTERED COMMAND HANDLERS
 +
@@ -1590,12 +1611,8 @@ index 0000000..089c736
 +		JSR	GETNCH		TIMER STATEMENT HANDLER
 +		CMPA	#'L		CHECK FOR "TIMERL=x" STATEMENT
 +		BEQ	TIMERLSTMT
-+
-+* DOESN'T WORK AND I DON'T KNOW WHY
-+
 +		CMPA	#$80		CHECK FOR "TIMER FOR X" STATEMENT
 +		BEQ	TIMERFORSTMT
-+
 +		JMP	L8960+2		IF NO, JUST DEFER TO ECB
 +
 +TIMERLSTMT	JSR	GETNCH		GET PAST EQUAL SIGN JUST LIKE ECB DOES
@@ -1659,7 +1676,6 @@ index 0000000..089c736
 +
 +		LEAS	5,S
 +		PULS	CC,PC
-+
 +
 +* 16K VERSION OF HEX$ HANDLES 32-BIT NUMBERS
 +
@@ -1858,6 +1874,30 @@ index 0000000..089c736
 +		FDB	AUDIO			AUDIO A1
 +		FDB	EXEC			EXEC A2
 +		FDB	SKIPF			SKIPF A3
++
++		IFDEF	USECBFUNCS
++* ALTERED DISPATCH TABLE FOR COLOR BASIC SECONDARY FUNCTIONS
++NEWBASFUNCS	FDB	SGN			SGN 80
++		FDB	INT			INT 81
++		FDB	ABS			ABS 82
++		FDB	$0112			USR 83
++		FDB	RND			RND 84
++		FDB	SIN			SIN 85
++		FDB	PEEK			PEEK 86
++		FDB	LEN			LEN 87
++		FDB	STR			STR 88
++		FDB	VAL			VAL 89
++		FDB	ASC			ASC 8A
++		FDB	CHR			CHR 8B
++		FDB	EOF			EOF 8C
++		FDB	JOYSTK			JOYSTK 8D
++		FDB	LEFT			LEFT 8E
++		FDB	RIGHT			RIGHT 8F
++		FDB	MID			MID 90
++		FDB	POINT			POINT 91
++		FDB	INKEY			INKEY 92
++		FDB	MEM			MEM 93
++		ENDC
 +
 +* THE "FONT", SUCH AS IT IS. DRAWN ON NOTEPAD FROM SWEET, SWEET
 +* MEMORIES OF SUPER COLOR WRITER. NO, REALLY. NOT KIDDING. HONEST.

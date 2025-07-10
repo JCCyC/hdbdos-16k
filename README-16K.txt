@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jun 30, 2025
+                          ToolShed GitHub repository as of Jul 09, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -44,7 +44,6 @@ TO DO:
   - Create a XOR operator
 - Support for text-mode inverse video and (in the 6847T1) lowercase
 - Create a BIN$ function (nobody cares about OCT$)
-- VAL(GOTO nnn) so we can obtain a renumerable line number
 - Manipulate the sector offset (HDBHI/HDBLO)
 
 
@@ -97,6 +96,9 @@ SUMMARY OF CHANGES:
   - Additionally, both have now a block copy syntax: LPEEK$(A,N) returns a
     string with N characters with a copy of memory at address A. Likewise,
     LPOKE A,X$ pokes all characters of X$ consecutively starting at address A.
+- GOTO X may be used as an expression; it simply returns X. Useful for
+  self-documenting programs that can be renumbered. Example:
+  - 10 PRINT"TO CHANGE THE FUNCTION, EDIT LINE";GOTO 500
 
 
 ADDED FILES:
