@@ -27,10 +27,17 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jul 21, 2025
+                          ToolShed GitHub repository as of Jul 30, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
+
+
+ISSUES:
+
+- ERNO appears as HPOINT when opening a program in a CoCo 3
+- Errors in disk functions are not correctly intercepted - program
+  silently ends instead
 
 
 TO DO:
