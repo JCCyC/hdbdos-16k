@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..0fbc7c2
+index 0000000..d9d4a77
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,132 @@
 +Package contents:
 +
 +- ROMs:
@@ -166,6 +166,10 @@ index 0000000..0fbc7c2
 +- Manipulate the sector offset (HDBHI/HDBLO)
 +- Enhance RENUM so it can renumber the first portion of a program,
 +  as opposed to only the second portion like it is currently in ECB
++- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
++  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
++  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
++- Allow GET #file,record# to obtain partial strings at EOF
 +
 +
 +WIP:
@@ -269,18 +273,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..21d3a0c
+index 0000000..a63e707
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-07-31 10:51:08'
++BUILDMSG        FCC 'Build 2025-07-31 14:45:40'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..50e7b80
+index 0000000..26dc66e
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1646 @@
+@@ -0,0 +1,1643 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -349,9 +353,7 @@ index 0000000..50e7b80
 +		LDA	#AMERICLOCK
 +NOBURGERS4ME	STA	TICKSPERSEC
 +
-+		BSR PMODE4
 +		BSR SET51COLS
-+
 +		LBSR CCCLS		* STARTUP MESSAGE
 +		LBSR GETPARMS
 +		LDX #LC139
@@ -361,10 +363,9 @@ index 0000000..50e7b80
 +		LDX #BUILDMSG
 +		LBSR PRINTSTR
 +
-+		LDY USRADR		* POINT TO START OF USR ARRAY +8 WORDS
-+		LEAY 16,Y
-+		LDX #USR8FUNC
-+		STX ,Y			* SET USR8
++		LDX USRADR		* POINT TO START OF USR ARRAY +8 WORDS
++		LDD #USR8FUNC
++		STD 16,X			* SET USR8
 +
 +		LDD #CACHAVEC2
 +		STD RVEC2+1

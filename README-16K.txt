@@ -53,6 +53,10 @@ TO DO:
 - Manipulate the sector offset (HDBHI/HDBLO)
 - Enhance RENUM so it can renumber the first portion of a program,
   as opposed to only the second portion like it is currently in ECB
+- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
+  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
+  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
+- Allow GET #file,record# to obtain partial strings at EOF
 
 
 WIP:
