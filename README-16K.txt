@@ -38,6 +38,8 @@ ISSUES:
 - ERNO appears as HPOINT when opening a program in a CoCo 3
 - Errors in disk functions are not correctly intercepted - program
   silently ends instead
+- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
+  INPUT #file,var$ doesn't
 
 
 TO DO:
