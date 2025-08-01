@@ -38,6 +38,8 @@ ISSUES:
 - ERNO appears as HPOINT when opening a program in a CoCo 3
 - Errors in disk functions are not correctly intercepted - program
   silently ends instead
+- WIDTH 51/64 should set PMODE to 4 and guarantee PCLEAR >= 4. Moreover,
+  PMODE < 4 should force text screen.
 
 
 TO DO:
@@ -53,9 +55,6 @@ TO DO:
 - Manipulate the sector offset (HDBHI/HDBLO)
 - Enhance RENUM so it can renumber the first portion of a program,
   as opposed to only the second portion like it is currently in ECB
-- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
-  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
-  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
 - Allow GET #file,record# to obtain partial strings at EOF
 
 
@@ -63,6 +62,10 @@ WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
+- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
+  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
+  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
+  (See issue with PMODE 4 above)
 
 
 SUMMARY OF CHANGES:
