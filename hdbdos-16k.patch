@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..7f51a07
+index 0000000..37439e1
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,137 @@
 +Package contents:
 +
 +- ROMs:
@@ -151,6 +151,8 @@ index 0000000..7f51a07
 +- ERNO appears as HPOINT when opening a program in a CoCo 3
 +- Errors in disk functions are not correctly intercepted - program
 +  silently ends instead
++- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
++  INPUT #file,var$ doesn't
 +
 +
 +TO DO:
@@ -276,11 +278,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..ab718a6
+index 0000000..a10d715
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-08-01 16:52:44'
++BUILDMSG        FCC 'Build 2025-08-01 17:44:45'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
@@ -4164,7 +4166,7 @@ index c3c1878..d638ed0 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..02d5d15
+index 0000000..5bb5053
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,25 @@
@@ -4177,7 +4179,7 @@ index 0000000..02d5d15
 +	cp 16k-$romname.rom 16k-$romname.rom.lst "$_tmpdir" || exit 2
 +done
 +
-+_today=`date +"%b %d, %Y"`
++_today=`LANG=C date +"%b %-d, %Y"`
 +_today="${_today^}"
 +
 +cp README-16K.txt "$_tmpdir" && \
