@@ -107,7 +107,7 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..a7708da
+index 0000000..7f51a07
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
 @@ -0,0 +1,135 @@
@@ -151,8 +151,6 @@ index 0000000..a7708da
 +- ERNO appears as HPOINT when opening a program in a CoCo 3
 +- Errors in disk functions are not correctly intercepted - program
 +  silently ends instead
-+- WIDTH 51/64 should set PMODE to 4 and guarantee PCLEAR >= 4. Moreover,
-+  PMODE < 4 should force text screen.
 +
 +
 +TO DO:
@@ -175,10 +173,6 @@ index 0000000..a7708da
 +
 +- Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
 +  for different stack layout in NMI (simple) and IRQ (complicated) handlers.
-+- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
-+  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
-+  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
-+  (See issue with PMODE 4 above)
 +
 +
 +SUMMARY OF CHANGES:
@@ -186,6 +180,7 @@ index 0000000..a7708da
 +- All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
 +  garbled upon loading
 +- 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
++  - Requires at least 4 graphics pages (6K) PCLEARed; forces PMODE 4
 +  - PRINT@ works as expected, with the maximum position being 1223 in 51x24
 +    mode and 1535 in 64x24 mode
 +  - The charset defined in ROM is ISO-8859-15, although it's possible to
@@ -233,6 +228,11 @@ index 0000000..a7708da
 +- GOTO X may be used as an expression; it simply returns X. Useful for
 +  self-documenting programs that can be renumbered. Example:
 +  - 10 PRINT"TO CHANGE THE FUNCTION, EDIT LINE";GOTO 500
++- Allows PCLEAR 0 for more RAM - instigated by an article by Allen Huffman:
++  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
++  Requires PMODE 0. You should not, under any circumstances, do anything with
++  graphics while in this mode or your BASIC program will be mercilessly
++  clobbered.
 +
 +
 +ADDED FILES:
@@ -276,18 +276,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..34a4fc0
+index 0000000..ab718a6
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-07-31 22:17:23'
++BUILDMSG        FCC 'Build 2025-08-01 16:52:44'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..716dd51
+index 0000000..5a849d0
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1653 @@
+@@ -0,0 +1,1661 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -506,10 +506,13 @@ index 0000000..716dd51
 +* SET ZF IF IN 256x192 GRAPHICS SCREEN
 +
 +TSTHIRES	PSHS A
++		LDA PMODE
++		CMPA #4
++		BNE PMODENOT4
 +		LDA PIA1+2
 +		ANDA #$F0
 +		CMPA #$F0
-+		PULS A,PC
++PMODENOT4	PULS A,PC
 +
 +* OBTAIN MEMORY LOCATION FOR CHARACTER COORDINATES
 +*
@@ -1338,13 +1341,18 @@ index 0000000..716dd51
 +
 +WIDTH		BEQ	LOCATE		* SN ERROR IF NO ARG
 +		JSR	LB70B		* GET 8-BIT ARG
++		CMPB	#32
++		BLS	SETSCREEN0
++		LDA	TXTTAB
++		SUBA	GRPRAM
++		CMPA	#24		* AT LEAST 24 256-BYTE PAGES OF GRAPHICS RAM?
++		LBLO	LAC44		* NO -> OUT OF MEMORY
 +		CMPB	#51
 +		BEQ	WIDTH51
 +		CMPB	#64
 +		BEQ	WIDTH64
-+		CMPB	#32
-+		BNE	GOFCERR
-+		CLRB
++		BRA	GOFCERR
++SETSCREEN0	CLRB
 +DOSCREEN	JMP	L95AA
 +WIDTH51		JSR	SET51COLS
 +DOSCREEN1	LDB	#1

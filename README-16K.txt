@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jul 31, 2025
+                          ToolShed GitHub repository as of Ago 01, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -38,8 +38,6 @@ ISSUES:
 - ERNO appears as HPOINT when opening a program in a CoCo 3
 - Errors in disk functions are not correctly intercepted - program
   silently ends instead
-- WIDTH 51/64 should set PMODE to 4 and guarantee PCLEAR >= 4. Moreover,
-  PMODE < 4 should force text screen.
 
 
 TO DO:
@@ -62,10 +60,6 @@ WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
-- Allow PCLEAR 0 - instigated by an article by Allen Huffman:
-  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
-  (Should require PMODE 0, and SCREEN 1 or WIDTH >32 should give an error)
-  (See issue with PMODE 4 above)
 
 
 SUMMARY OF CHANGES:
@@ -73,6 +67,7 @@ SUMMARY OF CHANGES:
 - All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
   garbled upon loading
 - 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
+  - Requires at least 4 graphics pages (6K) PCLEARed; forces PMODE 4
   - PRINT@ works as expected, with the maximum position being 1223 in 51x24
     mode and 1535 in 64x24 mode
   - The charset defined in ROM is ISO-8859-15, although it's possible to
@@ -120,6 +115,11 @@ SUMMARY OF CHANGES:
 - GOTO X may be used as an expression; it simply returns X. Useful for
   self-documenting programs that can be renumbered. Example:
   - 10 PRINT"TO CHANGE THE FUNCTION, EDIT LINE";GOTO 500
+- Allows PCLEAR 0 for more RAM - instigated by an article by Allen Huffman:
+  https://subethasoftware.com/2015/01/16/pclear-0-to-get-more-coco-basic-memory
+  Requires PMODE 0. You should not, under any circumstances, do anything with
+  graphics while in this mode or your BASIC program will be mercilessly
+  clobbered.
 
 
 ADDED FILES:
