@@ -273,18 +273,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..a63e707
+index 0000000..1fde7ef
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-07-31 14:45:40'
++BUILDMSG        FCC 'Build 2025-07-31 21:16:53'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..26dc66e
+index 0000000..026c4cd
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1643 @@
+@@ -0,0 +1,1636 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -796,31 +796,31 @@ index 0000000..26dc66e
 +
 +* SCROLL SCREEN UP ONE LINE
 +* (A 6309 WOULD MAKE THIS WAAAAY FASTER)
-+SCROLLUP	PSHS D,X,Y
-+		LDY BEGGRP
-+		LEAX $1800,Y
++SCROLLUP	PSHS D,X,U
++		LDU BEGGRP
++		LEAX $1800,U
 +		PSHS X
-+		LEAX 256,Y
++		LEAX 256,U
 +SCRLOOP		LDD ,X++	* MOVE 4 WORDS AT A TIME TO DO
-+		STD ,Y++	* LESS BRANCHES (~15% FASTER)
++		STD ,U++	* LESS BRANCHES (~15% FASTER)
 +		LDD ,X++
-+		STD ,Y++
++		STD ,U++
 +		LDD ,X++
-+		STD ,Y++
++		STD ,U++
 +		LDD ,X++
-+		STD ,Y++
++		STD ,U++
 +		CMPX ,S
 +		BLO SCRLOOP
 +		LDA REVERSE	* FILL LAST LINE WITH $FF IF
 +		TFR A,B		* REVERSE OR 0 IF NORMAL
-+		TFR Y,X		* USE THE BETTER INDEX REGISTER
-+		TFR D,Y
++		TFR U,X		* USE THE BETTER INDEX REGISTER
++		TFR D,U
 +CLRLASTLOOP	STD ,X++
-+		STY ,X++
++		STU ,X++
 +		CMPX ,S
 +		BLO CLRLASTLOOP
 +		LEAS 2,S
-+		PULS D,X,Y,PC
++		PULS D,X,U,PC
 +
 +* CONSOLE IN RAM HOOK
 +CACHAVEC4	LDA DEVNUM
@@ -1514,18 +1514,18 @@ index 0000000..26dc66e
 +
 +* MOVE ROM TO RAM
 +
-+ROMRAM          PSHS    D,X,Y,CC
++ROMRAM          PSHS    D,X,U,CC
 +		LDX     #8000
 +		ORCC    #IntMasks
 +ROMRAMLOOP      STA     ROMCLR
 +		LDD     ,X
-+		LDY     2,X
++		LDU     2,X
 +		STA     ROMSET
 +		STD     ,X++
-+		STY     ,X++
++		STU     ,X++
 +		CMPX    #$FF00
 +		BNE     ROMRAMLOOP
-+		PULS    D,X,Y,CC,PC
++		PULS    D,X,U,CC,PC
 +LENROMRAMCODE   EQU     *-ROMRAM
 +
 +MEMCPY          LDX     ,Y++
@@ -1603,14 +1603,7 @@ index 0000000..26dc66e
 +		BEQ	ERLIN
 +		CMPB	#($A8-$80)*2	MODIFIED TOKEN FOR LPEEK
 +		LBEQ	LPEEK
-+		CMPB	#($89-$80)*2	MODIFIED TOKEN FOR VAL
-+		BEQ	VALH
 +		JMP	L8168		IF NOT ONE OF OUR FUNCTIONS, GO TO EXBAS HANDLER
-+
-+* VAL GOTO nnn
-+
-+VALH		COM	$400
-+		JMP	L8168
 +
 +* ALTERED COMMAND HANDLERS
 +
