@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..37439e1
+index 0000000..f591615
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,138 @@
 +Package contents:
 +
 +- ROMs:
@@ -153,6 +153,7 @@ index 0000000..37439e1
 +  silently ends instead
 +- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
 +  INPUT #file,var$ doesn't
++- Utility to show memory layout
 +
 +
 +TO DO:
@@ -278,18 +279,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..a10d715
+index 0000000..d16cc2d
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-08-01 17:44:45'
++BUILDMSG        FCC 'Build 2025-08-02 14:32:57'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..5a849d0
+index 0000000..9924c7f
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1661 @@
+@@ -0,0 +1,1662 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1924,6 +1925,7 @@ index 0000000..5a849d0
 +
 +		IFDEF	USECBFUNCS
 +* ALTERED DISPATCH TABLE FOR COLOR BASIC SECONDARY FUNCTIONS
++* SO FAR THERE'S BEEN NO NEED TO USE THIS
 +NEWBASFUNCS	FDB	SGN			SGN 80
 +		FDB	INT			INT 81
 +		FDB	ABS			ABS 82

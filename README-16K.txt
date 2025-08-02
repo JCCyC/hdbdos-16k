@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Aug 1, 2025
+                          ToolShed GitHub repository as of Aug 2, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -40,6 +40,7 @@ ISSUES:
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
+- Utility to show memory layout
 
 
 TO DO:
