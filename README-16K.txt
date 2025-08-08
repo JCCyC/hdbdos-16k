@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Aug 2, 2025
+                          ToolShed GitHub repository as of Aug 8, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -40,7 +40,6 @@ ISSUES:
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
-- Utility to show memory layout
 
 
 TO DO:
@@ -57,6 +56,7 @@ TO DO:
 - Enhance RENUM so it can renumber the first portion of a program,
   as opposed to only the second portion like it is currently in ECB
 - Allow GET #file,record# to obtain partial strings at EOF
+- Utility to show memory layout
 
 
 WIP:

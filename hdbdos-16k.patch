@@ -107,7 +107,7 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..f591615
+index 0000000..dfd2df3
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
 @@ -0,0 +1,138 @@
@@ -153,7 +153,6 @@ index 0000000..f591615
 +  silently ends instead
 +- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
 +  INPUT #file,var$ doesn't
-+- Utility to show memory layout
 +
 +
 +TO DO:
@@ -170,6 +169,7 @@ index 0000000..f591615
 +- Enhance RENUM so it can renumber the first portion of a program,
 +  as opposed to only the second portion like it is currently in ECB
 +- Allow GET #file,record# to obtain partial strings at EOF
++- Utility to show memory layout
 +
 +
 +WIP:
@@ -279,11 +279,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..d16cc2d
+index 0000000..9bbbc1a
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-08-02 14:32:57'
++BUILDMSG        FCC 'Build 2025-08-08 17:29:11'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
