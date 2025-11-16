@@ -279,18 +279,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..9bbbc1a
+index 0000000..01858d1
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-08-08 17:29:11'
++BUILDMSG        FCC 'Build 2025-11-16 20:09:49'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..9924c7f
+index 0000000..01707c3
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1662 @@
+@@ -0,0 +1,1667 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1255,11 +1255,12 @@ index 0000000..9924c7f
 +		fcs       'LOF'               A5
 +		fcs       'MKN$'              A6
 +		fcs       'AS'                A7
-+		fcs       'LPEEK'             A8
-+		fcs       'BUTTON'            A9
-+		fcs       'HPOINT'            AA
-+		fcs       'ERNO'              AB
-+		fcs       'ERLIN'             AC
++		fcs       'FSCKED'            A8
++		fcs       'LPEEK'             A9
++		fcs       'BUTTON'            AA
++		fcs       'HPOINT'            AB
++		fcs       'ERNO'              AC
++		fcs       'ERLIN'             AD
 +* DISK BASIC SECONDARY FUNCTION JUMP TABLE
 +* FUNCTION / TOKEN #
 +ELC22C		fdb       CVN                 CVN / A2
@@ -1268,11 +1269,12 @@ index 0000000..9924c7f
 +		fdb       LOF                 LOF / A5
 +		fdb       MKN                 MKN$ / A6
 +		fdb       LB277               AS / A7
-+		fdb       LPEEK               LPEEK / A8
-+		fdb       BUTTON              BUTTON / A9
-+		fdb       HPOINT              HPOINT / AA
-+		fdb       ERNO                ERNO / AB
-+		fdb       ERLIN               ERLIN / AC
++		fdb       FSCKED              FSCKED / A8
++		fdb       LPEEK               LPEEK / A9
++		fdb       BUTTON              BUTTON / AA
++		fdb       HPOINT              HPOINT / AB
++		fdb       ERNO                ERNO / AC
++		fdb       ERLIN               ERLIN / AD
 +
 +*WIDTH		EQU	LB44A
 +PALETTE		EQU	LB44A
@@ -1304,7 +1306,7 @@ index 0000000..9924c7f
 +*ERLIN		EQU	LB44A
 +
 +EDHITOK         equ       $F8                 HIGHEST 1.1 DISK TOKEN
-+EDHISTOK        equ       $AC                 HIGHEST 1.1 DISK SECONDARY TOKEN
++EDHISTOK        equ       $AD                 HIGHEST 1.1 DISK SECONDARY TOKEN
 +
 +*DISK BASIC COMMAND INTERPRETATION HANDLER
 +ELC238         cmpa      #EDHITOK            *COMPARE TO HIGHEST DISK BASIC TOKEN
@@ -1329,7 +1331,7 @@ index 0000000..9924c7f
 +ELC109         fcb       43                  20 DISK BASIC 1.1 COMMANDS
 +		fdb       ELC192               DISK BASIC'S COMMAND DICTIONARY
 +		fdb       ELC238               COMMAND JUMP TABLE
-+		fcb       11                  6 DISK BASIC SECONDARY FUNCTIONS
++		fcb       12                  12 DISK BASIC SECONDARY FUNCTIONS
 +		fdb       ELC219               SECONDARY FUNCTION TABLE
 +		fdb       ELC24E               SECONDARY FUNCTION JUMP TABLE
 +
@@ -1476,7 +1478,7 @@ index 0000000..9924c7f
 +		LDX	#CHARSET51	HPOINT(5) - GRAPHICS MODE ROM FONT ADDRESS
 +		CLRA
 +		CLRB
-+		JMP	GIVABXF
++GOGIVABXF	JMP	GIVABXF
 +
 +JOYBUTMASK	FCB	1,4,2,8
 +BUTTON		JSR	INTCNV
@@ -1492,6 +1494,9 @@ index 0000000..9924c7f
 +		CLRA
 +GOGIVABF	JMP	GIVABF
 +YESBUTTON	LDB	#1
++		BRA	GOGIVABF
++
++FSCKED		JSR	INTCNV
 +		BRA	GOGIVABF
 +
 +TSTNM		CLRA			NO PATCHES FOR NATIVE MODE YET. ALSO,
@@ -1611,11 +1616,11 @@ index 0000000..9924c7f
 +		BEQ	TIMERL
 +		CMPB	#($9C-$80)*2	MODIFIED TOKEN FOR HEX$
 +		LBEQ	HEXDOLBIG
-+		CMPB	#($AB-$80)*2	MODIFIED TOKEN FOR ERNO
++		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERNO
 +		BEQ	ERNO
-+		CMPB	#($AC-$80)*2	MODIFIED TOKEN FOR ERLIN
++		CMPB	#($AD-$80)*2	MODIFIED TOKEN FOR ERLIN
 +		BEQ	ERLIN
-+		CMPB	#($A8-$80)*2	MODIFIED TOKEN FOR LPEEK
++		CMPB	#($A9-$80)*2	MODIFIED TOKEN FOR LPEEK
 +		LBEQ	LPEEK
 +		JMP	L8168		IF NOT ONE OF OUR FUNCTIONS, GO TO EXBAS HANDLER
 +
