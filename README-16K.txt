@@ -58,6 +58,7 @@ TO DO:
 - Utility to show memory layout
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode
+- A subset of ANSI control codes for use as a terminal
 
 
 WIP:
