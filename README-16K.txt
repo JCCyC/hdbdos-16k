@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Nov 16, 2025
+                          ToolShed GitHub repository as of Nov 17, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -51,12 +51,13 @@ TO DO:
 - Make the AND and OR operators accept values from -2^31 to 2^31-1
   - Create a XOR operator
 - Support for text-mode inverse video and (in the 6847T1) lowercase
-- Create a BIN$ function (nobody cares about OCT$)
 - Manipulate the sector offset (HDBHI/HDBLO)
-- Enhance RENUM so it can renumber the first portion of a program,
-  as opposed to only the second portion like it is currently in ECB
+- Enhance RENUM so it can renumber the first portion of a program, as opposed
+  to only the second portion like it is currently in ECB
 - Allow GET #file,record# to obtain partial strings at EOF
 - Utility to show memory layout
+- LOAD CHR$ to load an alternate text font for different code pages, either in
+  its standard location when in RAM mode, or in user memory when in ROM mode
 
 
 WIP:
@@ -123,6 +124,9 @@ SUMMARY OF CHANGES:
   Requires PMODE 0. You should not, under any circumstances, do anything with
   graphics while in this mode or your BASIC program will be mercilessly
   clobbered.
+- New BIN$ function that does exactly what you'd expect -- but, unlike HEX$,
+  doesn't skip leading zeroes and always returns a 32-character string. Hence,
+  for example, HEX$(5) returns "00000000000000000000000000000101".
 
 
 ADDED FILES:
