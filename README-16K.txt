@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Nov 17, 2025
+                          ToolShed GitHub repository as of Nov 20, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -35,8 +35,7 @@ README.txt                This file
 
 ISSUES:
 
-- ERNO appears as HPOINT when opening a program in a CoCo 3
-- Errors in disk functions are not correctly intercepted - program
+- Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
@@ -70,7 +69,8 @@ WIP:
 SUMMARY OF CHANGES:
 
 - All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
-  garbled upon loading
+  garbled upon loading -- this required reproducing an off-by-one bug in
+  CoCo 3's tokenizing code.
 - 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
   - Requires at least 4 graphics pages (6K) PCLEARed; forces PMODE 4
   - PRINT@ works as expected, with the maximum position being 1223 in 51x24

@@ -107,7 +107,7 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..7ff7771
+index 0000000..047133c
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
 @@ -0,0 +1,143 @@
@@ -148,8 +148,7 @@ index 0000000..7ff7771
 +
 +ISSUES:
 +
-+- ERNO appears as HPOINT when opening a program in a CoCo 3
-+- Errors in disk functions are not correctly intercepted - program
++- Errors in disk functions are sometimes not correctly intercepted - program
 +  silently ends instead
 +- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
 +  INPUT #file,var$ doesn't
@@ -183,7 +182,8 @@ index 0000000..7ff7771
 +SUMMARY OF CHANGES:
 +
 +- All CoCo 3 tokens are recognized, so a CoCo 3 BASIC program will not be
-+  garbled upon loading
++  garbled upon loading -- this required reproducing an off-by-one bug in
++  CoCo 3's tokenizing code.
 +- 51x24 and 64x24 text modes in PMODE 4, switchable with WIDTH command
 +  - Requires at least 4 graphics pages (6K) PCLEARed; forces PMODE 4
 +  - PRINT@ works as expected, with the maximum position being 1223 in 51x24
@@ -284,11 +284,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..06a0714
+index 0000000..dc10f43
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-11-17 09:35:14'
++BUILDMSG        FCC 'Build 2025-11-20 13:18:18'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
