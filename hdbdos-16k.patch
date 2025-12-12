@@ -107,7 +107,7 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..047133c
+index 0000000..9f27223
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
 @@ -0,0 +1,143 @@
@@ -162,7 +162,6 @@ index 0000000..047133c
 +  - One hot key to swap the text mode at boot
 +- Make the AND and OR operators accept values from -2^31 to 2^31-1
 +  - Create a XOR operator
-+- Support for text-mode inverse video and (in the 6847T1) lowercase
 +- Manipulate the sector offset (HDBHI/HDBLO)
 +- Enhance RENUM so it can renumber the first portion of a program, as opposed
 +  to only the second portion like it is currently in ECB
@@ -177,6 +176,7 @@ index 0000000..047133c
 +
 +- Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
 +  for different stack layout in NMI (simple) and IRQ (complicated) handlers.
++- Support for text-mode inverse video and (in the 6847T1) lowercase
 +
 +
 +SUMMARY OF CHANGES:
@@ -284,18 +284,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..dc10f43
+index 0000000..0ca9b18
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-11-20 13:18:18'
++BUILDMSG        FCC 'Build 2025-12-12 16:32:59'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..021f01d
+index 0000000..9e8c357
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1686 @@
+@@ -0,0 +1,1748 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -509,7 +509,7 @@ index 0000000..021f01d
 +		STA PIA1+2
 +		PULS A,B,X
 +		LEAS 2,S
-+		JMP LA30A
++		JMP RVLA30A
 +
 +* SET ZF IF IN 256x192 GRAPHICS SCREEN
 +
@@ -1898,6 +1898,68 @@ index 0000000..021f01d
 +GOPRINTFROMAT	JSR	LB911
 +		CLR	DEVNUM
 +		RTS
++
++
++
++* PUT A CHARACTER ON THE SCREEN - TAKES INTO ACCOUNT REVERSE VIDEO
++RVLA30A		TST	REVERSE
++		LBNE	LA30A
++		PSHS	X,B,A		SAVE REGISTERS
++		LDX	CURPOS		POINT X TO CURRENT CHARACTER POSITION
++		CMPA	#BS		IS IT BACKSPACE?
++		BNE	RVLA31D		NO
++		CMPX	#VIDRAM		AT TOP OF SCREEN?
++		BEQ	RVLA35D		YES - DO NOT ALLOW BACKSPACE
++		LDA	#$20		BLANK
++		STA	,-X		PUT IN PREVIOUS POSITION
++		BRA	RVLA344		SAVE NEW CURPOS
++RVLA31D		CMPA	#CR		ENTER KEY?
++		BNE	RVLA32F		BRANCH IF NOT
++		LDX	CURPOS		GET CURRENT CHAR POSITION
++RVLA323		LDA	#$20		BLANK
++		STA	,X+		PUT IT ON SCREEN
++		TFR	X,D		*
++		BITB	#$1F		* TEST FOR BEGINNING OF NEW LINE
++		BNE	RVLA323		PUT OUT BLANKS TILL NEW LINE
++		BRA	RVLA344		CHECK FOR SCROLLING
++RVLA32F		CMPA	#SPACE		*
++		BCS	RVLA35D		* BRANCH IF CONTROL CHARACTER
++		TSTA			SET FLAGS
++		BMI	RVLA342		IT IS GRAPHIC CHARACTER
++		CMPA	#$40		*
++		BCS	RVLA342		* BRANCH IF NUMBER OR SPECIAL CHARACTER
++		CMPA	#$60		UPPER/LOWER CASE?
++		BCS	RVLA340		BRANCH IF UPPER CASE ALPHA
++		ANDA	#$DF
++		BRA	RVLA342
++		ANDA	#$BF
++RVLA340		EORA	#$40
++RVLA342		STA	,X+		STORE CHARACTER TO SCREEN
++RVLA344		STX	CURPOS		SAVE CURRENT CHAR POSITION
++		CMPX	#VIDRAM+511	END OF SCREEN BUFFER?
++		BLS	RVLA35D		RETURN IF NO NEED TO SCROLL
++		LDX	#VIDRAM		TOP OF SCREEN
++* SCROLL THE SCREEN
++RVLA34E		LDD	32,X		GET TWO BYTES
++		STD	,X++		MOVE THEM UP ONE ROW
++		CMPX	#VIDRAM+$1E0	AT THE LAST LINE?
++		BCS	RVLA34E		NO
++		LDB	#$20		BLANK
++		JSR	>LA92D		BLANK LAST LINE
++RVLA35D		PULS	A,B,X,PC	RESTORE REGISTERS
++* CLEAR SCREEN
++RVLA928		LDB	#$20		BLANK
++		LDX	#VIDRAM		GET ADDR OF START OF SCREEN BUFFER
++RVLA92D		STX	CURPOS		SAVE IT IN CURPOS
++RVLA92F		STB	,X+		FILL SCREEN WITH CONTENTS OF ACCB
++		CMPX	#VIDRAM+511	END OF SCREEN?
++		BLS	RVLA92F		NO
++		RTS
++RVLA937		BSR	RVLA928		CLEAR SCREEN
++		LDX	#LA166-1	*
++		JMP	>LB99C		* PRINT ‘MICROSOFT’
++
++
 +
 +* 6309 NATIVE MODE NMI SERVICE (DIFFERENT STACK)
 +NMI6309NATIVE	LDA	NMIFLG

@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Nov 20, 2025
+                          ToolShed GitHub repository as of Dec 12, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -49,7 +49,6 @@ TO DO:
   - One hot key to swap the text mode at boot
 - Make the AND and OR operators accept values from -2^31 to 2^31-1
   - Create a XOR operator
-- Support for text-mode inverse video and (in the 6847T1) lowercase
 - Manipulate the sector offset (HDBHI/HDBLO)
 - Enhance RENUM so it can renumber the first portion of a program, as opposed
   to only the second portion like it is currently in ECB
@@ -64,6 +63,7 @@ WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
+- Support for text-mode inverse video and (in the 6847T1) lowercase
 
 
 SUMMARY OF CHANGES:
