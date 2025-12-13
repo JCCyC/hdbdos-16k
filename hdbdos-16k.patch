@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..9f27223
+index 0000000..836da66
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,143 @@
+@@ -0,0 +1,149 @@
 +Package contents:
 +
 +- ROMs:
@@ -152,6 +152,7 @@ index 0000000..9f27223
 +  silently ends instead
 +- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
 +  INPUT #file,var$ doesn't
++- Inverse video in text mode gets wrong background color when typing backspace
 +
 +
 +TO DO:
@@ -170,13 +171,13 @@ index 0000000..9f27223
 +- LOAD CHR$ to load an alternate text font for different code pages, either in
 +  its standard location when in RAM mode, or in user memory when in ROM mode
 +- A subset of ANSI control codes for use as a terminal
++- Support for lowercase when using a T1 VDG
 +
 +
 +WIP:
 +
 +- Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
 +  for different stack layout in NMI (simple) and IRQ (complicated) handlers.
-+- Support for text-mode inverse video and (in the 6847T1) lowercase
 +
 +
 +SUMMARY OF CHANGES:
@@ -199,7 +200,12 @@ index 0000000..9f27223
 +- TIMER FOR N waits N seconds (N may be a fraction: TIMER FOR 1.5 waits 1.5s)
 +- HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
 +  switch to RAM and ROM respectively
-+- HSET COLOR 1 sets text screen to orange; HSET COLOR 0 sets it back to green.
++- HSET COLOR n sets text color:
++  - 0: black on green, default
++  - 1: black on orange
++  - 2: green on black
++  - 3: orange on black
++  - In graphics mode, 1 and 3 work like 0 and 2 respectively.
 +- HPOINT gives you some system information:
 +  - HPOINT(0) returns the CPU model (6809 or 6309)
 +  - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
@@ -284,18 +290,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..0ca9b18
+index 0000000..0457761
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-12 16:32:59'
++BUILDMSG        FCC 'Build 2025-12-13 10:43:21'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..9e8c357
+index 0000000..ec56f50
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1748 @@
+@@ -0,0 +1,1755 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -903,16 +909,13 @@ index 0000000..9e8c357
 +		LBSR PUTCHAR
 +		PULS B,X,PC
 +
-+GOOLDRVEC22	PULS X,CC
-+		LBRA DVEC22
-+
 +* CLS RAM HOOK
 +CACHAVEC22	PSHS X,CC		* CLS HOOK HAS TO PRESERVE FLAGS
 +		LDX 3,S			* GET RETURN ADDRESS FROM STACK
 +		CMPX #CLSRETN		* CHECK TO SEE IF IT'S THE CLS ROUTINE
-+		BNE GOOLDRVEC22
++		BNE DVEC22IFNOINV
 +		LBSR TSTHIRES		* ARE WE IN "OUR" VIDEO MODE?
-+		BNE GOOLDRVEC22
++		BNE DVEC22IFNOINV
 +		PULS X,CC		* RECOVER FLAGS
 +		BEQ NOCLSARG		* ZF => NO ARGUMENTS
 +		JSR LB70B		* PARSE INTEGER ARG
@@ -935,6 +938,17 @@ index 0000000..9e8c357
 +		LDX #EEMSG
 +		LBSR PRINTSTR
 +NOEE		PULS D,X,Y,U,PC
++
++DVEC22IFNOINV	TST REVERSE
++		BNE GODVEC22
++		CMPX #L975F		* COMING FROM EXBAS' GET/PUT?
++		BEQ GODVEC22
++		PULS X,CC
++		LEAS 2,S		* ACTUAL TEXT-MODE CLS -> WE HANDLE IT
++		LBNE CLS+5		* CLS WITH ARGUMENT -> ROM
++		JMP RVLA928
++GODVEC22	PULS X,CC
++		LBRA DVEC22
 +
 +* HANDLE PRINTER OUTPUT IF WE HAVE DRIVEWIRE
 +		IFDEF DW
@@ -1384,14 +1398,24 @@ index 0000000..9e8c357
 +		BNE	HSETMEMSOME
 +		STA     ROMSET
 +		RTS
++
 +HSETMEMSOME	CMPA	#$DE		IS NEXT TOKEN 'COPY'?
 +		BNE	GOSNERR
 +		JSR	GETNCH
 +		JMP	DOROMRAM
++
 +HSETCOLOR	JSR	GETNCH
 +		JSR	LB70B
-+		CMPB	#1
++		CMPB	#3
 +		BHI	GOFCERR
++
++		TFR	B,A
++		ANDA	#2
++		LSRA
++		DECA
++		STA	REVERSE
++
++		ANDB #1
 +		LSLB
 +		LSLB
 +		LSLB
@@ -1859,10 +1883,8 @@ index 0000000..9e8c357
 +H16PRINT	LBEQ	LB958		NO ARGS: GOT TO CB TO PRINT CR
 +		CMPA	#'@		PRINT@: WE NEED TO HANDLE IT
 +		LBNE	PRINT+2		NOT PRINT@, HANDLE IT IN CB ROM
-+
-+		JSR	TSTHIRES
++		JSR	TSTHIRES	ARE WE IN HI-RES TEXT MODE?
 +		LBNE	PRINT+2		PRINT@ BUT WE'RE IN TEXT MODE: ROM
-+
 +		JSR	LB3E4		GET LINEAR CURSOR POSITION IN ACCD
 +		TFR	D,X
 +		LDB	HRTEXTWIDTH
@@ -1874,7 +1896,6 @@ index 0000000..9e8c357
 +COMPAREDPOS	LBHS	LB44A		OUT OF SCREEN BOUNDS: FC ERROR
 +		CMPB	#64		IF IN 64 COLUMN MODE
 +		BEQ	EASYLOCATE	OUR LIFE IS WAY WAY EASIER
-+
 +		TFR	X,D		DIVISION BY SUCESSIVE MULTIPLICATIONS
 +		CLR	CURY            IS KINDA, SORTA ACCEPTABLE HERE
 +SUBONELINE	SUBD	#51             BECAUSE WE'LL LOOP AT MOST 24 TIMES
@@ -1884,24 +1905,20 @@ index 0000000..9e8c357
 +OUTOFLINES	ADDB	#51
 +		STB	CURX
 +		BRA	GOPRINTFROMAT
-+
 +EASYLOCATE	TFR	X,D
 +		ANDB	#63
-+		STB	CURX
++		STB	CURX		IN 64 COLUMN MODE, CURX = POS & $3F
 +		TFR	X,D
 +		LSLB
 +		ROLA
 +		LSLB
 +		ROLA
-+		STA	CURY
-+
-+GOPRINTFROMAT	JSR	LB911
++		STA	CURY		IN 64 COLUMN MODE, CURY = POS / 64
++GOPRINTFROMAT	JSR	LB911		CURSOR POSITIONED, GO DO THE PRINT
 +		CLR	DEVNUM
 +		RTS
 +
-+
-+
-+* PUT A CHARACTER ON THE SCREEN - TAKES INTO ACCOUNT REVERSE VIDEO
++* TEXT MODE CHARACTER OUT - REVERSE VIDEO VERSION
 +RVLA30A		TST	REVERSE
 +		LBNE	LA30A
 +		PSHS	X,B,A		SAVE REGISTERS
@@ -1947,7 +1964,8 @@ index 0000000..9e8c357
 +		LDB	#$20		BLANK
 +		JSR	>LA92D		BLANK LAST LINE
 +RVLA35D		PULS	A,B,X,PC	RESTORE REGISTERS
-+* CLEAR SCREEN
++
++* CLEAR SCREEN - REVERSE VIDEO VERSION
 +RVLA928		LDB	#$20		BLANK
 +		LDX	#VIDRAM		GET ADDR OF START OF SCREEN BUFFER
 +RVLA92D		STX	CURPOS		SAVE IT IN CURPOS
@@ -1955,11 +1973,6 @@ index 0000000..9e8c357
 +		CMPX	#VIDRAM+511	END OF SCREEN?
 +		BLS	RVLA92F		NO
 +		RTS
-+RVLA937		BSR	RVLA928		CLEAR SCREEN
-+		LDX	#LA166-1	*
-+		JMP	>LB99C		* PRINT ‘MICROSOFT’
-+
-+
 +
 +* 6309 NATIVE MODE NMI SERVICE (DIFFERENT STACK)
 +NMI6309NATIVE	LDA	NMIFLG

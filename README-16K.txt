@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 12, 2025
+                          ToolShed GitHub repository as of Dec 13, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -39,6 +39,7 @@ ISSUES:
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
+- Inverse video in text mode gets wrong background color when typing backspace
 
 
 TO DO:
@@ -57,13 +58,13 @@ TO DO:
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode
 - A subset of ANSI control codes for use as a terminal
+- Support for lowercase when using a T1 VDG
 
 
 WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
-- Support for text-mode inverse video and (in the 6847T1) lowercase
 
 
 SUMMARY OF CHANGES:
@@ -86,7 +87,12 @@ SUMMARY OF CHANGES:
 - TIMER FOR N waits N seconds (N may be a fraction: TIMER FOR 1.5 waits 1.5s)
 - HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
   switch to RAM and ROM respectively
-- HSET COLOR 1 sets text screen to orange; HSET COLOR 0 sets it back to green.
+- HSET COLOR n sets text color:
+  - 0: black on green, default
+  - 1: black on orange
+  - 2: green on black
+  - 3: orange on black
+  - In graphics mode, 1 and 3 work like 0 and 2 respectively.
 - HPOINT gives you some system information:
   - HPOINT(0) returns the CPU model (6809 or 6309)
   - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
