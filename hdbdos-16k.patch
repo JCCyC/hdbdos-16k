@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..836da66
+index 0000000..54b8602
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,148 @@
 +Package contents:
 +
 +- ROMs:
@@ -152,7 +152,6 @@ index 0000000..836da66
 +  silently ends instead
 +- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
 +  INPUT #file,var$ doesn't
-+- Inverse video in text mode gets wrong background color when typing backspace
 +
 +
 +TO DO:
@@ -290,18 +289,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..0457761
+index 0000000..2a40ef1
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-13 10:43:21'
++BUILDMSG        FCC 'Build 2025-12-13 12:49:56'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..ec56f50
+index 0000000..921c27b
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1755 @@
+@@ -0,0 +1,1764 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1973,6 +1972,15 @@ index 0000000..ec56f50
 +		CMPX	#VIDRAM+511	END OF SCREEN?
 +		BLS	RVLA92F		NO
 +		RTS
++
++* BLINK CURSOR WHILE WAITING FOR KEYSTROKE - REVERSE VIDEO VERSION
++RVLA1B1		PSHS	X,B		SAVE REGISTERS
++RVLA1B3		JSR	LA199		GO DO CURSOR
++		JSR	KEYIN		GO CHECK KEYBOARD
++		BEQ	RVLA1B3		LOOP IF NO KEY DOWN
++		LDB	#$20		BLANK
++		STB	[CURPOS]	BLANK CURRENT CURSOR CHAR ON SCREEN
++		PULS B,X,PC
 +
 +* 6309 NATIVE MODE NMI SERVICE (DIFFERENT STACK)
 +NMI6309NATIVE	LDA	NMIFLG
@@ -4084,7 +4092,7 @@ index 0000000..4447325
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..d638ed0 100644
+index c3c1878..a5a9fa8 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -4254,7 +4262,39 @@ index c3c1878..d638ed0 100644
                 ldx       7,s                 Where are we coming from?
                 cmpx      #LA39A+3            The idle loop?
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5399,6 +5440,15 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5310,7 +5351,7 @@ GETTKN         com       INTFLG              Set to $FF
+ RENTER         clr       HLDPTR              Clear flags
+                clr       INSERT              Clear flags
+                clr       WHLINE              Clear flags
+-KYREAD         jsr       >GETKEY             Wait for a key & blink cursor
++KYREAD         bsr       MAYBERVGETKEY       Wait for a key & blink cursor
+                cmpa      #9                  Right arrow?
+                beq       GETCHR              Yes, get a char from buffer
+                cmpa      #$5D                SHIFT-Right arrow?
+@@ -5330,6 +5371,13 @@ GETCHR         clr       INSERT              Reset insert flag
+                bne       GOODCH              Not end flag so continue
+                clr       WHLINE              At end so reset entire line flag
+                bra       KYREAD              And get more from keyboard
++               IFDEF     ROM16K
++MAYBERVGETKEY  tst       REVERSE
++               lbne      GETKEY
++               jmp       RVLA1B1
++               ELSE
++MAYBERVGETKEY  jmp       GETKEY
++               ENDC
+ GOODCH         inc       HLDPTR              Point to next char
+                bra       EXIT                And return with char
+ b@             cmpa      #$5B                SHIFT-Down? (Was SHIFT-@)
+@@ -5358,7 +5406,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
+                beq       CLRPNT              Yes, reset hold pointer
+                cmpa      #$5C                SHIFT-Clear?
+                bne       CONXIT              No, not special insert
+-               jsr       >GETKEY             Special insert, get key
++               bsr       MAYBERVGETKEY       Special insert, get key
+                bra       CONXIT              And exit with it
+ CLRPNT         clr       HLDPTR              Clear hold pointer
+ CONXIT         cmpa      #32                 Is it a control character?
+@@ -5399,6 +5447,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  

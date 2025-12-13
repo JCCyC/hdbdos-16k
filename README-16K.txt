@@ -39,7 +39,6 @@ ISSUES:
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
-- Inverse video in text mode gets wrong background color when typing backspace
 
 
 TO DO:
