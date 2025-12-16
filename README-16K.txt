@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 13, 2025
+                          ToolShed GitHub repository as of Dec 16, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -87,11 +87,16 @@ SUMMARY OF CHANGES:
 - HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
   switch to RAM and ROM respectively
 - HSET COLOR n sets text color:
-  - 0: black on green, default
-  - 1: black on orange
-  - 2: green on black
-  - 3: orange on black
-  - In graphics mode, 1 and 3 work like 0 and 2 respectively.
+  - 0: dark border, black-on-green characters (default)
+  - 1: dark border, black-on-orange characters
+  - 2: dark border, green-on-black characters
+  - 3: dark border, orange-on-black characters
+  - 4: light border, black-on-green characters
+  - 5: light border, black-on-orange characters
+  - 6: light border, green-on-black characters
+  - 7: light border, orange-on-black characters
+  - In graphics mode, only the green-on-black/black-on-green setting works
+  - Border color setting only works in CoCos with a 6847T1 video controller
 - HPOINT gives you some system information:
   - HPOINT(0) returns the CPU model (6809 or 6309)
   - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.

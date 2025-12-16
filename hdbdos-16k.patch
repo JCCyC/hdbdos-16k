@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..54b8602
+index 0000000..3a61032
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,153 @@
 +Package contents:
 +
 +- ROMs:
@@ -200,11 +200,16 @@ index 0000000..54b8602
 +- HSET MEM COPY moves BASIC to RAM in 64KB machines; HSET MEM and HRESET MEM
 +  switch to RAM and ROM respectively
 +- HSET COLOR n sets text color:
-+  - 0: black on green, default
-+  - 1: black on orange
-+  - 2: green on black
-+  - 3: orange on black
-+  - In graphics mode, 1 and 3 work like 0 and 2 respectively.
++  - 0: dark border, black-on-green characters (default)
++  - 1: dark border, black-on-orange characters
++  - 2: dark border, green-on-black characters
++  - 3: dark border, orange-on-black characters
++  - 4: light border, black-on-green characters
++  - 5: light border, black-on-orange characters
++  - 6: light border, green-on-black characters
++  - 7: light border, orange-on-black characters
++  - In graphics mode, only the green-on-black/black-on-green setting works
++  - Border color setting only works in CoCos with a 6847T1 video controller
 +- HPOINT gives you some system information:
 +  - HPOINT(0) returns the CPU model (6809 or 6309)
 +  - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
@@ -289,18 +294,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..2a40ef1
+index 0000000..2c75796
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-13 12:49:56'
++BUILDMSG        FCC 'Build 2025-12-16 10:58:25'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..921c27b
+index 0000000..ba40dff
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1764 @@
+@@ -0,0 +1,1772 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1405,7 +1410,7 @@ index 0000000..921c27b
 +
 +HSETCOLOR	JSR	GETNCH
 +		JSR	LB70B
-+		CMPB	#3
++		CMPB	#7
 +		BHI	GOFCERR
 +
 +		TFR	B,A
@@ -1414,8 +1419,16 @@ index 0000000..921c27b
 +		DECA
 +		STA	REVERSE
 +
-+		ANDB #1
-+		LSLB
++		TFR	B,A
++		ANDA	#4
++		BEQ	ONLYTXTCOLOR
++
++		ANDB	#1
++		ORB	#8
++		BRA	THREESHIFTS
++
++ONLYTXTCOLOR	ANDB	#1
++THREESHIFTS	LSLB
 +		LSLB
 +		LSLB
 +		STB	ALTCOLOR
