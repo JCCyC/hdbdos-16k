@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 16, 2025
+                          ToolShed GitHub repository as of Dec 17, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -57,7 +57,6 @@ TO DO:
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode
 - A subset of ANSI control codes for use as a terminal
-- Support for lowercase when using a T1 VDG
 
 
 WIP:
@@ -97,6 +96,9 @@ SUMMARY OF CHANGES:
   - 7: light border, orange-on-black characters
   - In graphics mode, only the green-on-black/black-on-green setting works
   - Border color setting only works in CoCos with a 6847T1 video controller
+- HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
+  inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
+  inverse mode if active)
 - HPOINT gives you some system information:
   - HPOINT(0) returns the CPU model (6809 or 6309)
   - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.

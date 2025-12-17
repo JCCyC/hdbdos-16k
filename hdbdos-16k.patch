@@ -107,10 +107,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..3a61032
+index 0000000..0f69bbc
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,155 @@
 +Package contents:
 +
 +- ROMs:
@@ -170,7 +170,6 @@ index 0000000..3a61032
 +- LOAD CHR$ to load an alternate text font for different code pages, either in
 +  its standard location when in RAM mode, or in user memory when in ROM mode
 +- A subset of ANSI control codes for use as a terminal
-+- Support for lowercase when using a T1 VDG
 +
 +
 +WIP:
@@ -210,6 +209,9 @@ index 0000000..3a61032
 +  - 7: light border, orange-on-black characters
 +  - In graphics mode, only the green-on-black/black-on-green setting works
 +  - Border color setting only works in CoCos with a 6847T1 video controller
++- HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
++  inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
++  inverse mode if active)
 +- HPOINT gives you some system information:
 +  - HPOINT(0) returns the CPU model (6809 or 6309)
 +  - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
@@ -294,18 +296,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..2c75796
+index 0000000..8116ebd
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-16 10:58:25'
++BUILDMSG        FCC 'Build 2025-12-17 12:32:23'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..ba40dff
+index 0000000..fe963d8
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1772 @@
+@@ -0,0 +1,1791 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1367,7 +1369,7 @@ index 0000000..ba40dff
 +		ldb       #10                 10 BYTES PER TABLE
 +		jmp       >LA59A              MOVE (B) BYTES FROM (X) TO (U)
 +
-+WIDTH		BEQ	LOCATE		* SN ERROR IF NO ARG
++WIDTH		LBEQ	GOSNERR		* SN ERROR IF NO ARG
 +		JSR	LB70B		* GET 8-BIT ARG
 +		CMPB	#32
 +		BLS	SETSCREEN0
@@ -1379,7 +1381,7 @@ index 0000000..ba40dff
 +		BEQ	WIDTH51
 +		CMPB	#64
 +		BEQ	WIDTH64
-+		BRA	GOFCERR
++		JMP	GOFCERR
 +SETSCREEN0	CLRB
 +DOSCREEN	JMP	L95AA
 +WIDTH51		JSR	SET51COLS
@@ -1387,6 +1389,22 @@ index 0000000..ba40dff
 +		BRA	DOSCREEN
 +WIDTH64		JSR	SET64COLS
 +		BRA	DOSCREEN1
++
++HSETLSET	JSR     GETNCH
++		JSR	LB70B
++		CMPB	#1
++		BHI	GOFCERR
++		BNE	DONTZEROREVERSE
++		LDA	#255
++		STA	REVERSE
++		LDA	#16
++		ORA	ALTCOLOR
++		STA	ALTCOLOR
++		RTS
++DONTZEROREVERSE	LDA	ALTCOLOR
++		ANDA	#$EF
++		STA	ALTCOLOR
++		RTS
 +
 +XLIMIT		JSR	TSTHIRES
 +		BNE	XTEXT
@@ -1396,17 +1414,14 @@ index 0000000..ba40dff
 +XTEXT		LDD	#$2010
 +		RTS
 +
-+HSET		CMPA	#$C1		IS NEXT TOKEN 'COLOR'?
++HSET		CMPA	#$D4		IS NEXT TOKEN 'LSET'?
++		BEQ	HSETLSET
++		CMPA	#$C1		IS NEXT TOKEN 'COLOR'?
 +		BEQ	HSETCOLOR
 +		BSR	CHKMEMTOK
 +		BNE	HSETMEMSOME
 +		STA     ROMSET
 +		RTS
-+
-+HSETMEMSOME	CMPA	#$DE		IS NEXT TOKEN 'COPY'?
-+		BNE	GOSNERR
-+		JSR	GETNCH
-+		JMP	DOROMRAM
 +
 +HSETCOLOR	JSR	GETNCH
 +		JSR	LB70B
@@ -1418,8 +1433,9 @@ index 0000000..ba40dff
 +		LSRA
 +		DECA
 +		STA	REVERSE
-+
-+		TFR	B,A
++		BNE	NODISABLELOWER
++		ANDB	#$FD
++NODISABLELOWER	TFR	B,A
 +		ANDA	#4
 +		BEQ	ONLYTXTCOLOR
 +
@@ -1433,6 +1449,11 @@ index 0000000..ba40dff
 +		LSLB
 +		STB	ALTCOLOR
 +		RTS
++
++HSETMEMSOME	CMPA	#$DE		IS NEXT TOKEN 'COPY'?
++		BNE	GOSNERR
++		JSR	GETNCH
++		JMP	DOROMRAM
 +
 +HRESET		BSR	CHKMEMTOK
 +		STA	ROMCLR
@@ -1473,14 +1494,14 @@ index 0000000..ba40dff
 +		STX	CURPOS
 +		RTS
 +
-+GOSNERR		JMP	>LB277
-+
 +CHKMEMTOK	CMPA	#$FF		CHECK FOR 'MEM' SEC TOKEN
 +		BNE	GOSNERR
 +		JSR	GETNCH
 +		CMPA	#$93
 +		BNE	GOSNERR
 +		JMP	GETNCH
++
++GOSNERR		JMP	>LB277
 +
 +HPOINT		JSR	INTCNV		FETCH NUMERIC ARG
 +		BNE	HPOINTNOT00
