@@ -300,18 +300,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..3b37da3
+index 0000000..799bd05
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-20 14:13:05'
++BUILDMSG        FCC 'Build 2025-12-20 15:19:16'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..842fb24
+index 0000000..2b859b7
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1822 @@
+@@ -0,0 +1,1825 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -857,9 +857,12 @@ index 0000000..842fb24
 +		LEAS 2,S
 +		PULS D,X,U,PC
 +
++SLOWIFNOKEYB	STA $FFD6	* IF INPUT FROM NON-CONSOLE DEVICE,
++		JMP NOFLEXKY	* PLAY IT SAFE AND SET DEFAULT SPEED
++
 +* CONSOLE IN RAM HOOK
 +CACHAVEC4	LDA DEVNUM
-+		LBNE NOFLEXKY
++		BNE SLOWIFNOKEYB
 +		LBSR TSTHIRES
 +		LBNE YESFLEXKY
 +		LEAS 2,S
