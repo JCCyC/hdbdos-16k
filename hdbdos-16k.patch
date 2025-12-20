@@ -48,10 +48,10 @@ index cb207e8..2595aeb 100644
  	BNE	L8862	NOT SECONDARY
 diff --git a/cocoroms/rom16kvars.asm b/cocoroms/rom16kvars.asm
 new file mode 100644
-index 0000000..a525071
+index 0000000..94ddf31
 --- /dev/null
 +++ b/cocoroms/rom16kvars.asm
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,19 @@
 +DATAAREA16        EQU *
 +CURX            RMB 1       CURSOR COLUMN POSITION (0-50 OR 0-63)
 +CURY            RMB 1       CURSOR ROW POSITION (0-23)
@@ -70,6 +70,7 @@ index 0000000..a525071
 +ONERRTARGET     RMB 2       BASIC LINE NUMBER TO JUMP ON ERROR
 +TICKSPERSEC     RMB 1       WHAT TO DIVIDE TIMER/TIMERL BY TO GET SECONDS
 +ALTCOLOR	RMB 1       TEXT MODE COLOR: 0 = GREEN, 8 = ORANGE
++FASTMODE	RMB 1       BIT 0 SET: FAST ROM ACCESS MODE (SAM R0, $FFD7)
 diff --git a/hdbdos/Makefile b/hdbdos/Makefile
 index 7d0dddf..777ab20 100644
 --- a/hdbdos/Makefile
@@ -107,10 +108,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..0f69bbc
+index 0000000..cf29575
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,158 @@
 +Package contents:
 +
 +- ROMs:
@@ -212,6 +213,9 @@ index 0000000..0f69bbc
 +- HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
 +  inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
 +  inverse mode if active)
++- HSET F puts the CPU in fast mode (1.78 MHz) when accessing the ROM. This is
++  the "conservative" fast mode, which will work even with older CoCos. HSET S
++  gets back to slow mode.
 +- HPOINT gives you some system information:
 +  - HPOINT(0) returns the CPU model (6809 or 6309)
 +  - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
@@ -296,18 +300,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..8116ebd
+index 0000000..3b37da3
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-17 12:32:23'
++BUILDMSG        FCC 'Build 2025-12-20 14:13:05'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..fe963d8
+index 0000000..842fb24
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1791 @@
+@@ -0,0 +1,1822 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -408,6 +412,8 @@ index 0000000..fe963d8
 +		STD RVEC18+1
 +		LDD #CACHAVEC19
 +		STD RVEC19+1
++		LDD #CACHAVEC20
++		STD RVEC20+1
 +
 +		LDD #NEWBASDISPATCH
 +		STD COMVEC+3
@@ -485,9 +491,12 @@ index 0000000..fe963d8
 +BITDISPS	FCB 1,6,3,0,5,2,7,4
 +BYTEDISPS	FCB 0,0,1,2,2,3,3,4
 +
-+EEMSG		FCC 'Thx Boisy, Tormod, Bob, Steve, Allen etc! --Juan'
-+		FCB 13,0
++EEMSG		FCC 'Thx Alex, Allen, Bob, Boisy, Steve, Tormod etc! -JC'
++		FCB 0
 +
++SLOWIFNOSCREEN	STA $FFD6	* TO BE ON THE SAFE SIDE, EVERY CHARACTER
++		JMP DVEC3	* OUTPUT NOT TO THE SCREEN WILL BE IN
++				* STANDARD CLOCK SPEED (0.87 MHz)
 +* CONSOLE OUT RAM HOOK
 +CACHAVEC3	PSHS B
 +		LDB DEVNUM
@@ -499,7 +508,7 @@ index 0000000..fe963d8
 +		ENDC
 +USEHWPRINTER	TSTB
 +		PULS B
-+		LBNE DVEC3
++		BNE SLOWIFNOSCREEN
 +		BSR TSTHIRES
 +		LBEQ ISHIRES
 +
@@ -895,9 +904,17 @@ index 0000000..fe963d8
 +		BRA WAITFORKEY
 +
 +* LINE INPUT RAM HOOK
-+CACHAVEC12	LBSR TSTHIRES
++CACHAVEC12	TST DEVNUM
 +		BNE GOOLDRVEC12
-+		TST DEVNUM
++
++		PSHS	B,X
++		LDX	#$FFD6		* SET SPEED ACCORDING TO CONFIGURATION
++		LDB	FASTMODE
++		ANDB	#1
++		STA	B,X
++		PULS	B,X
++
++		LBSR TSTHIRES
 +		BNE GOOLDRVEC12
 +		PSHS A
 +		LDA #1
@@ -1390,6 +1407,12 @@ index 0000000..fe963d8
 +WIDTH64		JSR	SET64COLS
 +		BRA	DOSCREEN1
 +
++HSETSPEED	ANDA	#1		F IS EVEN, S IS ODD
++		EORA	#1		SO WE HAVE TO INVERT
++		STA	FASTMODE
++		JSR	GETNCH
++		RTS
++
 +HSETLSET	JSR     GETNCH
 +		JSR	LB70B
 +		CMPB	#1
@@ -1418,6 +1441,12 @@ index 0000000..fe963d8
 +		BEQ	HSETLSET
 +		CMPA	#$C1		IS NEXT TOKEN 'COLOR'?
 +		BEQ	HSETCOLOR
++
++		CMPA	#'F		IS NEXT TOKEN 'F' (FAST)?
++		BEQ	HSETSPEED
++		CMPA	#'S		IS NEXT TOKEN 'S' (SLOW)?
++		BEQ	HSETSPEED
++
 +		BSR	CHKMEMTOK
 +		BNE	HSETMEMSOME
 +		STA     ROMSET
@@ -2015,6 +2044,12 @@ index 0000000..fe963d8
 +		LDB	#$20		BLANK
 +		STB	[CURPOS]	BLANK CURRENT CURSOR CHAR ON SCREEN
 +		PULS B,X,PC
++
++CACHAVEC20	LDX	#$FFD6		SET SPEED ACCORDING TO CONFIGURATION
++		LDB	FASTMODE
++		ANDB	#1
++		STA	B,X
++		JMP	DVEC20
 +
 +* 6309 NATIVE MODE NMI SERVICE (DIFFERENT STACK)
 +NMI6309NATIVE	LDA	NMIFLG

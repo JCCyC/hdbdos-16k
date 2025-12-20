@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 17, 2025
+                          ToolShed GitHub repository as of Dec 20, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -99,6 +99,9 @@ SUMMARY OF CHANGES:
 - HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
   inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
   inverse mode if active)
+- HSET F puts the CPU in fast mode (1.78 MHz) when accessing the ROM. This is
+  the "conservative" fast mode, which will work even with older CoCos. HSET S
+  gets back to slow mode.
 - HPOINT gives you some system information:
   - HPOINT(0) returns the CPU model (6809 or 6309)
   - HPOINT(1) is planned to return whether the 6309 is running in Native Mode.
