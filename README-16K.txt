@@ -156,3 +156,4 @@ hdbdos/mk16kpackage.sh
 hdbdos/mkslacklist.sh
 hdbdos/build-hdbdos-16k.sh
 hdbdos/buildmsg.asm
+hdbdos/runcoco.sh
