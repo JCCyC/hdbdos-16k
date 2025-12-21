@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 20, 2025
+                          ToolShed GitHub repository as of Dec 21, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -99,6 +99,10 @@ SUMMARY OF CHANGES:
 - HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
   inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
   inverse mode if active)
+- HSET INPUT <character> sets the cursor character. For example:
+  - HSET INPUT CHR$(95) sets the cursor to a thin underline instead of the
+    default thick underline
+  - HSET INPUT CHR$(124) sets the cursor to a vertical bar like in GUI OSs
 - HSET F puts the CPU in fast mode (1.78 MHz) when accessing the ROM. This is
   the "conservative" fast mode, which will work even with older CoCos. HSET S
   gets back to slow mode.

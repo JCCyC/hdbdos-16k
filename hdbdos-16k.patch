@@ -108,10 +108,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..2428cc6
+index 0000000..47410a0
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,163 @@
 +Package contents:
 +
 +- ROMs:
@@ -213,6 +213,10 @@ index 0000000..2428cc6
 +- HSET LSET 1 activates lowercase characters, HSET LSET 0 gets back to
 +  inverse-as-lowercase default mode (only works in CoCos with a 6847T1; resets
 +  inverse mode if active)
++- HSET INPUT <character> sets the cursor character. For example:
++  - HSET INPUT CHR$(95) sets the cursor to a thin underline instead of the
++    default thick underline
++  - HSET INPUT CHR$(124) sets the cursor to a vertical bar like in GUI OSs
 +- HSET F puts the CPU in fast mode (1.78 MHz) when accessing the ROM. This is
 +  the "conservative" fast mode, which will work even with older CoCos. HSET S
 +  gets back to slow mode.
@@ -301,18 +305,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..1f2d046
+index 0000000..1f75fa4
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-20 18:25:39'
++BUILDMSG        FCC 'Build 2025-12-21 15:16:37'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..2b859b7
+index 0000000..c1cb0be
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1825 @@
+@@ -0,0 +1,1838 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1402,7 +1406,7 @@ index 0000000..2b859b7
 +		BEQ	WIDTH51
 +		CMPB	#64
 +		BEQ	WIDTH64
-+		JMP	GOFCERR
++GOFCERR2	JMP	GOFCERR
 +SETSCREEN0	CLRB
 +DOSCREEN	JMP	L95AA
 +WIDTH51		JSR	SET51COLS
@@ -1410,6 +1414,18 @@ index 0000000..2b859b7
 +		BRA	DOSCREEN
 +WIDTH64		JSR	SET64COLS
 +		BRA	DOSCREEN1
++
++HSETINPUT	JSR	GETNCH
++		JSR	LB156		GET STRING TO GET CURSOR CHAR FROM
++		TST	VALTYP		CHECK TYPE
++		BPL	GOFCERR2	ERROR IF NUMERIC VALUE GIVEN
++		JSR	LB686		GET ADDR & LEN OF STRING
++		BEQ	GOFCERR2	ERROR IF ZERO-LENGTH STRING
++		LDA	,X		GET FIRST CHARACTER
++		CMPA	#' '
++		BLO	GOFCERR2	ERROR IF NON-PRINTABLE CHARACTER
++		STA	CURSORCHAR
++		RTS
 +
 +HSETSPEED	ANDA	#1		F IS EVEN, S IS ODD
 +		EORA	#1		SO WE HAVE TO INVERT
@@ -1445,7 +1461,8 @@ index 0000000..2b859b7
 +		BEQ	HSETLSET
 +		CMPA	#$C1		IS NEXT TOKEN 'COLOR'?
 +		BEQ	HSETCOLOR
-+
++		CMPA	#$89		IS NEXT TOKEN 'INPUT'?
++		BEQ	HSETINPUT
 +		CMPA	#'F		IS NEXT TOKEN 'F' (FAST)?
 +		BEQ	HSETSPEED
 +		CMPA	#'S		IS NEXT TOKEN 'S' (SLOW)?
@@ -2140,7 +2157,7 @@ index 0000000..2b859b7
 +		INCLUDE font64.asm
 diff --git a/hdbdos/font51.asm b/hdbdos/font51.asm
 new file mode 100644
-index 0000000..56ec075
+index 0000000..2f6ee85
 --- /dev/null
 +++ b/hdbdos/font51.asm
 @@ -0,0 +1,1007 @@
@@ -2561,7 +2578,7 @@ index 0000000..56ec075
 +		FCB %01001100
 +		FCB %01000010
 +		FCB %01000010
-+		FCB %00000001
++		FCB %01000001
 +		FCB %01000010
 +		FCB %01000010
 +		FCB %01001100
@@ -3153,7 +3170,7 @@ index 0000000..56ec075
 +		FCB %00000110
 diff --git a/hdbdos/font64.asm b/hdbdos/font64.asm
 new file mode 100644
-index 0000000..4447325
+index 0000000..d91769e
 --- /dev/null
 +++ b/hdbdos/font64.asm
 @@ -0,0 +1,1007 @@
@@ -3574,7 +3591,7 @@ index 0000000..4447325
 +		FCB %01001000
 +		FCB %01000100
 +		FCB %01000100
-+		FCB %00000010
++		FCB %01000010
 +		FCB %01000100
 +		FCB %01000100
 +		FCB %01001000
@@ -4427,10 +4444,10 @@ index 0000000..c5a463d
 +done
 diff --git a/hdbdos/runcoco.sh b/hdbdos/runcoco.sh
 new file mode 100755
-index 0000000..a3e30fa
+index 0000000..e3da96c
 --- /dev/null
 +++ b/hdbdos/runcoco.sh
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,33 @@
 +#!/bin/bash
 +cd `dirname $0`
 +if [ "$1" != "" ]; then
@@ -4443,4 +4460,24 @@ index 0000000..a3e30fa
 +else
 +	_cpu=6809
 +fi
-+exec nohup xroar -machine "$_machine" -machine-cpu "$_cpu" -geometry 986x768 -bas ../cocoroms/bas13.rom -extbas ../cocoroms/extbas11.rom -cart-rom 16k-hdbdw3bck.rom >/dev/null 2>&1 &
++
++if ! which xdpyinfo >/dev/null 2>&1; then
++	echo "xdpyinfo utility not found" >&2
++	exit 1
++fi
++_vres=`xdpyinfo | grep dimensions | head -1 | sed -e 's/^[^0-9]*[0-9]*x//;s/ .*//'`
++_vdim=$(($_vres*7/10))
++_hdim=$(($_vdim*493/384))
++_hpad=$((($_vres-$_vdim)/4))
++_vpad=$((($_vres-$_vdim)/6))
++
++if ! which xroar >/dev/null 2>&1; then
++	echo "XRoar emulator not found" >&2
++	exit 2
++fi
++if [ -f ../cocoroms/bas13.rom -a -f ../cocoroms/extbas11.rom -a -f 16k-hdbdw3bck.rom ]; then
++	exec nohup xroar -machine "$_machine" -machine-cpu "$_cpu" -geometry ${_hdim}x${_vdim}+${_hpad}+${_vpad} -bas ../cocoroms/bas13.rom -extbas ../cocoroms/extbas11.rom -cart-rom 16k-hdbdw3bck.rom >/dev/null 2>&1 &
++else
++	echo "One of more ROMs not found" >&2
++	exit 3
++fi
