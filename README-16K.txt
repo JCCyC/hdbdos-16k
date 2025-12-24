@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 21, 2025
+                          ToolShed GitHub repository as of Dec 24, 2025
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -76,6 +76,10 @@ SUMMARY OF CHANGES:
     mode and 1535 in 64x24 mode
   - The charset defined in ROM is ISO-8859-15, although it's possible to
     redefine it with HSET MEM COPY and HPOINT(5) (see below)
+  - If an AUTOEXEC.BAS program is auto-executed at boot or by the DOS command,
+    the screen is put in text mode, for compatibility with programs that don't
+    expect to find themselves in a PMODE 4 that character output doesn't get
+    you out of. (e.g. Sidekick)
 - LOCATE works as expected
   - Works in the 32x16 screen too, unlike the CoCo 3
 - Support for BUTTON function including 2nd joystick button (requires internal

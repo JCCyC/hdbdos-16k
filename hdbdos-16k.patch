@@ -108,10 +108,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..47410a0
+index 0000000..a4881cf
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,167 @@
 +Package contents:
 +
 +- ROMs:
@@ -190,6 +190,10 @@ index 0000000..47410a0
 +    mode and 1535 in 64x24 mode
 +  - The charset defined in ROM is ISO-8859-15, although it's possible to
 +    redefine it with HSET MEM COPY and HPOINT(5) (see below)
++  - If an AUTOEXEC.BAS program is auto-executed at boot or by the DOS command,
++    the screen is put in text mode, for compatibility with programs that don't
++    expect to find themselves in a PMODE 4 that character output doesn't get
++    you out of. (e.g. Sidekick)
 +- LOCATE works as expected
 +  - Works in the 32x16 screen too, unlike the CoCo 3
 +- Support for BUTTON function including 2nd joystick button (requires internal
@@ -305,11 +309,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..1f75fa4
+index 0000000..4d7ea6e
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-21 15:16:37'
++BUILDMSG        FCC 'Build 2025-12-24 17:34:26'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
@@ -4182,7 +4186,7 @@ index 0000000..d91769e
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..a5a9fa8 100644
+index c3c1878..61ab992 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -4288,7 +4292,20 @@ index c3c1878..a5a9fa8 100644
  
                 ldd       #(9*256)+0          Write 9 bytes of 0...
                 ldx       #INTFLG             ...Into our RAM (clear it)
-@@ -4692,6 +4721,7 @@ a@             decb                          Count it down
+@@ -4050,6 +4079,12 @@ DOAUTO         ldx       #NAMBUF             Point to "AUTOEXEC.BAS"
+                lda       <DCDRV              Get DSKCON drive #
+                sta       $95A                And make it default drive for BASIC
+                leas      2,s
++
++		IFDEF	ROM16K
++		CLRB				SCREEN 0 IF WE'RE GOING TO AUTOEXEC
++		JSR	$9677
++		ENDC
++
+                jmp       LCA67               No, go run it!
+ BASICBYE       rts       
+ 
+@@ -4692,6 +4727,7 @@ a@             decb                          Count it down
  
  * Set directory size by screen width
  
@@ -4296,7 +4313,7 @@ index c3c1878..a5a9fa8 100644
  SETSIZ         lda       <$E7                Get screen mode
                 suba      #2                  WIDTH 80?
                 beq       COL5                Yes, do 5 columns
-@@ -4702,6 +4732,7 @@ SETSIZ         lda       <$E7                Get screen mode
+@@ -4702,6 +4738,7 @@ SETSIZ         lda       <$E7                Get screen mode
                 fcb       SKIP2               Skip lda #5
  COL5           lda       #5                  Five columns
                 sta       DIR1                Store in temp RAM
@@ -4304,7 +4321,7 @@ index c3c1878..a5a9fa8 100644
  
  * Break DIR into columns
  
-@@ -5187,10 +5218,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
+@@ -5187,10 +5224,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
  
  * Main Sign-On Message And Copyright Notice
  
@@ -4323,7 +4340,7 @@ index c3c1878..a5a9fa8 100644
                 ENDC      
                 fcb       $20
                 IFDEF     IDE
-@@ -5259,7 +5296,11 @@ SIGNON         fcc       "HDB-DOS "
+@@ -5259,7 +5302,11 @@ SIGNON         fcc       "HDB-DOS "
                 fcc       " ON DRAGON"
                 ENDC
  *	fcc	" (C) 2002 AE"
@@ -4335,7 +4352,7 @@ index c3c1878..a5a9fa8 100644
                 fcb       STOP2
  
  * Canned command for read, drive 0, track 0, sector 1
-@@ -5288,13 +5329,13 @@ C@             jmp       XVEC3               Console out
+@@ -5288,13 +5335,13 @@ C@             jmp       XVEC3               Console out
  * Source code reproduced from Rainbow - October 1984
  
  FLEXKY         lda       <$6F                Get device number
@@ -4352,7 +4369,7 @@ index c3c1878..a5a9fa8 100644
                 ldx       7,s                 Where are we coming from?
                 cmpx      #LA39A+3            The idle loop?
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5310,7 +5351,7 @@ GETTKN         com       INTFLG              Set to $FF
+@@ -5310,7 +5357,7 @@ GETTKN         com       INTFLG              Set to $FF
  RENTER         clr       HLDPTR              Clear flags
                 clr       INSERT              Clear flags
                 clr       WHLINE              Clear flags
@@ -4361,7 +4378,7 @@ index c3c1878..a5a9fa8 100644
                 cmpa      #9                  Right arrow?
                 beq       GETCHR              Yes, get a char from buffer
                 cmpa      #$5D                SHIFT-Right arrow?
-@@ -5330,6 +5371,13 @@ GETCHR         clr       INSERT              Reset insert flag
+@@ -5330,6 +5377,13 @@ GETCHR         clr       INSERT              Reset insert flag
                 bne       GOODCH              Not end flag so continue
                 clr       WHLINE              At end so reset entire line flag
                 bra       KYREAD              And get more from keyboard
@@ -4375,7 +4392,7 @@ index c3c1878..a5a9fa8 100644
  GOODCH         inc       HLDPTR              Point to next char
                 bra       EXIT                And return with char
  b@             cmpa      #$5B                SHIFT-Down? (Was SHIFT-@)
-@@ -5358,7 +5406,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
+@@ -5358,7 +5412,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
                 beq       CLRPNT              Yes, reset hold pointer
                 cmpa      #$5C                SHIFT-Clear?
                 bne       CONXIT              No, not special insert
@@ -4384,7 +4401,7 @@ index c3c1878..a5a9fa8 100644
                 bra       CONXIT              And exit with it
  CLRPNT         clr       HLDPTR              Clear hold pointer
  CONXIT         cmpa      #32                 Is it a control character?
-@@ -5399,6 +5447,15 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5399,6 +5453,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  
