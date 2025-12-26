@@ -39,6 +39,7 @@ ISSUES:
   silently ends instead
 - LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
   INPUT #file,var$ doesn't
+- Sometimes RENUM gives an error. Hard to reproduce for now.
 
 
 TO DO:
@@ -57,6 +58,9 @@ TO DO:
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode
 - A subset of ANSI control codes for use as a terminal
+- RESTORE <line> like in other BASIC's. But the syntax will have to be
+  something like RESTORE GOTO <line> in order to RENUM to be able to deal
+  with it.
 
 
 WIP:
