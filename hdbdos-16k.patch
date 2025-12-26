@@ -309,18 +309,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..4d7ea6e
+index 0000000..8ceccb0
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-24 17:34:26'
++BUILDMSG        FCC 'Build 2025-12-25 21:14:00'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..c1cb0be
+index 0000000..13dc1dd
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1838 @@
+@@ -0,0 +1,1850 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1261,7 +1261,7 @@ index 0000000..c1cb0be
 +ELC1F1		fdb       DIR                 DIR / CE
 +		fdb       DRIVE               DRIVE / CF
 +		fdb       FIELD               FIELD / D0
-+		fdb       FILES               FILES / D1
++		fdb       H16FILES            FILES / D1
 +		fdb       KILL                KILL / D2
 +		fdb       LOAD                LOAD / D3
 +		fdb       LSET                LSET / D4
@@ -1963,6 +1963,18 @@ index 0000000..c1cb0be
 +		CLRA
 +		CLRB
 +		JMP	GIVABXF
++
++* CHANGES TO FILES COMMAND SO IT DOESN'T FLASH BACK TO TEXT MODE
++* IF WE'RE IN HI-RES TEXT MODE
++
++H16FILES	JSR     TSTHIRES        ARE WE IN HI-RES TEXT MODE?
++		LBNE	FILES		NO, DO PLAIN FILES
++		JMP	FILES+3		YES, DO FILES WITHOUT VDG STUFF
++* END OF PATCHED FILES COMMAND JUMPS HERE
++FILESENDPATCH	JSR	TSTHIRES	ARE WE IN HI-RES TEXT MODE?
++		BNE	NORESETVDG	NO, NO NEED TO RESET VDG
++		JSR	L95CF		RESET VDG IF WE WERE IN HI-RES TEXT
++NORESETVDG	JMP	L96CB		READJUST LINE NUMBERS, ETC.
 +
 +* RAM VECTOR HOOKING WON'T FIX PRINT@ FOR GRAPHICS MODE,
 +* GOTTA INSTALL A NEW COMMAND HANDLER FOR PRINT
@@ -4186,7 +4198,7 @@ index 0000000..d91769e
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..61ab992 100644
+index c3c1878..58dea1b 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -4257,7 +4269,21 @@ index c3c1878..61ab992 100644
                 jsr       >LB262              SYNTAX CHECK FOR '(' AND EVALUATE EXPRESSION
                 lda       DEVNUM              * GET DEVICE NUMBER AND
                 pshs      A                   * SAVE IT ON STACK
-@@ -3744,7 +3760,14 @@ DIRQSV         lda       PIA0+3              63.5 MICRO SECOND OR 60 HZ INTERRUP
+@@ -2836,7 +2852,13 @@ LD222          stx       ,U++                STORE FILE ADDRESS IN VECTOR TABLE
+                incb                          INCREMENT FILE COUNTER
+                cmpb      FCBACT              CLOSE ALL ACTIVE BUFFERS AND SYSTEM FCB
+                bls       LD222               BRANCH IF NOT DONE
++
++               IFDEF     ROM16K
++               jmp       FILESENDPATCH       READJUST LINE NUMBERS AFTER RESETTING VDG
++               ELSE
+                jmp       >L96CB              READJUST LINE NUMBERS, ETC.
++               ENDC
++
+ * UNLOAD COMMAND
+ UNLOAD         bsr       LD24F               GET DRIVE NUMBER
+                clrb                          CLEAR	FILE COUNTER
+@@ -3744,7 +3766,14 @@ DIRQSV         lda       PIA0+3              63.5 MICRO SECOND OR 60 HZ INTERRUP
                 anda      #$B0                = TURN ALL MOTORS AND DRIVE SELECTS OFF
                 sta       DRGRAM              = PUT IT BACK IN RAM IMAGE
                 sta       DSKREG              SEND TO CONTROL REGISTER (MOTORS OFF)
@@ -4272,7 +4298,7 @@ index c3c1878..61ab992 100644
  * THIS IS THE END OF DISK BASIC (EXCEPT FOR THE DOS COMMAND AT $DF00).
  * THE CODE FROM THIS POINT TO $DF00 IS GARBAGE.
  * DOSBAS 1.1 = 1584 WASTED BYTES
-@@ -3821,6 +3844,7 @@ B4HARD		EQU .
+@@ -3821,6 +3850,7 @@ B4HARD		EQU .
                 fdb       BEEP                Make a beep sound
                 fdb       DSKCON2             DSKCON Re-entry
  
@@ -4280,7 +4306,7 @@ index c3c1878..61ab992 100644
  HDBHI          fcb       $00                 HDB-DOS Offset hi-byte
  HDBLO          fdb       $0000               HDB-DOS Offset lo-word
  
-@@ -3839,6 +3863,11 @@ DEFID          fcb       0
+@@ -3839,6 +3869,11 @@ DEFID          fcb       0
  
  HDINIT         ldx       #SIGNON-1           Point to sign-on
                 lbsr      PRINT2              Print it
@@ -4292,7 +4318,7 @@ index c3c1878..61ab992 100644
  
                 ldd       #(9*256)+0          Write 9 bytes of 0...
                 ldx       #INTFLG             ...Into our RAM (clear it)
-@@ -4050,6 +4079,12 @@ DOAUTO         ldx       #NAMBUF             Point to "AUTOEXEC.BAS"
+@@ -4050,6 +4085,12 @@ DOAUTO         ldx       #NAMBUF             Point to "AUTOEXEC.BAS"
                 lda       <DCDRV              Get DSKCON drive #
                 sta       $95A                And make it default drive for BASIC
                 leas      2,s
@@ -4305,7 +4331,7 @@ index c3c1878..61ab992 100644
                 jmp       LCA67               No, go run it!
  BASICBYE       rts       
  
-@@ -4692,6 +4727,7 @@ a@             decb                          Count it down
+@@ -4692,6 +4733,7 @@ a@             decb                          Count it down
  
  * Set directory size by screen width
  
@@ -4313,7 +4339,7 @@ index c3c1878..61ab992 100644
  SETSIZ         lda       <$E7                Get screen mode
                 suba      #2                  WIDTH 80?
                 beq       COL5                Yes, do 5 columns
-@@ -4702,6 +4738,7 @@ SETSIZ         lda       <$E7                Get screen mode
+@@ -4702,6 +4744,7 @@ SETSIZ         lda       <$E7                Get screen mode
                 fcb       SKIP2               Skip lda #5
  COL5           lda       #5                  Five columns
                 sta       DIR1                Store in temp RAM
@@ -4321,7 +4347,7 @@ index c3c1878..61ab992 100644
  
  * Break DIR into columns
  
-@@ -5187,10 +5224,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
+@@ -5187,10 +5230,16 @@ NAMBUF         fcc       "AUTOEXEC"          FILENAME
  
  * Main Sign-On Message And Copyright Notice
  
@@ -4340,7 +4366,7 @@ index c3c1878..61ab992 100644
                 ENDC      
                 fcb       $20
                 IFDEF     IDE
-@@ -5259,7 +5302,11 @@ SIGNON         fcc       "HDB-DOS "
+@@ -5259,7 +5308,11 @@ SIGNON         fcc       "HDB-DOS "
                 fcc       " ON DRAGON"
                 ENDC
  *	fcc	" (C) 2002 AE"
@@ -4352,7 +4378,7 @@ index c3c1878..61ab992 100644
                 fcb       STOP2
  
  * Canned command for read, drive 0, track 0, sector 1
-@@ -5288,13 +5335,13 @@ C@             jmp       XVEC3               Console out
+@@ -5288,13 +5341,13 @@ C@             jmp       XVEC3               Console out
  * Source code reproduced from Rainbow - October 1984
  
  FLEXKY         lda       <$6F                Get device number
@@ -4369,7 +4395,7 @@ index c3c1878..61ab992 100644
                 ldx       7,s                 Where are we coming from?
                 cmpx      #LA39A+3            The idle loop?
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5310,7 +5357,7 @@ GETTKN         com       INTFLG              Set to $FF
+@@ -5310,7 +5363,7 @@ GETTKN         com       INTFLG              Set to $FF
  RENTER         clr       HLDPTR              Clear flags
                 clr       INSERT              Clear flags
                 clr       WHLINE              Clear flags
@@ -4378,7 +4404,7 @@ index c3c1878..61ab992 100644
                 cmpa      #9                  Right arrow?
                 beq       GETCHR              Yes, get a char from buffer
                 cmpa      #$5D                SHIFT-Right arrow?
-@@ -5330,6 +5377,13 @@ GETCHR         clr       INSERT              Reset insert flag
+@@ -5330,6 +5383,13 @@ GETCHR         clr       INSERT              Reset insert flag
                 bne       GOODCH              Not end flag so continue
                 clr       WHLINE              At end so reset entire line flag
                 bra       KYREAD              And get more from keyboard
@@ -4392,7 +4418,7 @@ index c3c1878..61ab992 100644
  GOODCH         inc       HLDPTR              Point to next char
                 bra       EXIT                And return with char
  b@             cmpa      #$5B                SHIFT-Down? (Was SHIFT-@)
-@@ -5358,7 +5412,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
+@@ -5358,7 +5418,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
                 beq       CLRPNT              Yes, reset hold pointer
                 cmpa      #$5C                SHIFT-Clear?
                 bne       CONXIT              No, not special insert
@@ -4401,7 +4427,7 @@ index c3c1878..61ab992 100644
                 bra       CONXIT              And exit with it
  CLRPNT         clr       HLDPTR              Clear hold pointer
  CONXIT         cmpa      #32                 Is it a control character?
-@@ -5399,6 +5453,15 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5399,6 +5459,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  
