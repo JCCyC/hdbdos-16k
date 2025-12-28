@@ -313,18 +313,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..1a8c7d4
+index 0000000..f1b1775
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-25 21:25:02'
++BUILDMSG        FCC 'Build 2025-12-28 15:09:41'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..13dc1dd
+index 0000000..d43444e
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1850 @@
+@@ -0,0 +1,1851 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1418,8 +1418,9 @@ index 0000000..13dc1dd
 +SETSCREEN0	CLRB
 +DOSCREEN	JMP	L95AA
 +WIDTH51		JSR	SET51COLS
-+DOSCREEN1	LDB	#1
-+		BRA	DOSCREEN
++DOSCREEN1	CLR	CURX		RESET X POSITION
++		LDB	#1		IF SETTING GRAPHICS MODE, TO AVOID
++		BRA	DOSCREEN	CURSOR BEING IN INVALID POSITION
 +WIDTH64		JSR	SET64COLS
 +		BRA	DOSCREEN1
 +
