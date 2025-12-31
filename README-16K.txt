@@ -162,6 +162,9 @@ SUMMARY OF CHANGES:
 - New BIN$ function that does exactly what you'd expect -- but, unlike HEX$,
   doesn't skip leading zeroes and always returns a 32-character string. Hence,
   for example, HEX$(5) returns "00000000000000000000000000000101".
+- Special characters (numeric code above $7F) within string constants in BASIC
+  programs now show correctly in listing. (Still doesn't work when saving a
+  program with the ,A option)
 
 
 ADDED FILES:

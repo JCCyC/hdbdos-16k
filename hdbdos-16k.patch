@@ -48,10 +48,10 @@ index cb207e8..2595aeb 100644
  	BNE	L8862	NOT SECONDARY
 diff --git a/cocoroms/rom16kvars.asm b/cocoroms/rom16kvars.asm
 new file mode 100644
-index 0000000..94ddf31
+index 0000000..5018e9e
 --- /dev/null
 +++ b/cocoroms/rom16kvars.asm
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,20 @@
 +DATAAREA16        EQU *
 +CURX            RMB 1       CURSOR COLUMN POSITION (0-50 OR 0-63)
 +CURY            RMB 1       CURSOR ROW POSITION (0-23)
@@ -71,6 +71,7 @@ index 0000000..94ddf31
 +TICKSPERSEC     RMB 1       WHAT TO DIVIDE TIMER/TIMERL BY TO GET SECONDS
 +ALTCOLOR	RMB 1       TEXT MODE COLOR: 0 = GREEN, 8 = ORANGE
 +FASTMODE	RMB 1       BIT 0 SET: FAST ROM ACCESS MODE (SAM R0, $FFD7)
++INQUOTFLAG	RMB 1       FLAG 'WITHIN QUOTES' DURING UNCRUNCH
 diff --git a/hdbdos/Makefile b/hdbdos/Makefile
 index 7d0dddf..777ab20 100644
 --- a/hdbdos/Makefile
@@ -108,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..7c7362f
+index 0000000..d6c7c4f
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,182 @@
 +Package contents:
 +
 +- ROMs:
@@ -276,6 +277,9 @@ index 0000000..7c7362f
 +- New BIN$ function that does exactly what you'd expect -- but, unlike HEX$,
 +  doesn't skip leading zeroes and always returns a 32-character string. Hence,
 +  for example, HEX$(5) returns "00000000000000000000000000000101".
++- Special characters (numeric code above $7F) within string constants in BASIC
++  programs now show correctly in listing. (Still doesn't work when saving a
++  program with the ,A option)
 +
 +
 +ADDED FILES:
@@ -321,18 +325,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..7efe5a2
+index 0000000..29255f9
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2025-12-31 10:13:56'
++BUILDMSG        FCC 'Build 2025-12-31 17:31:46'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..d43444e
+index 0000000..0cee71d
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1851 @@
+@@ -0,0 +1,1917 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -401,6 +405,10 @@ index 0000000..d43444e
 +		LDA	#AMERICLOCK
 +NOBURGERS4ME	STA	TICKSPERSEC
 +
++		LDX USRADR		* POINT TO START OF USR ARRAY +8 WORDS
++		LDD #USR8FUNC
++		STD 16,X			* SET USR8
++
 +		BSR SET51COLS
 +		LBSR CCCLS		* STARTUP MESSAGE
 +		LBSR GETPARMS
@@ -410,10 +418,6 @@ index 0000000..d43444e
 +		LBSR PRINTSTR
 +		LDX #BUILDMSG
 +		LBSR PRINTSTR
-+
-+		LDX USRADR		* POINT TO START OF USR ARRAY +8 WORDS
-+		LDD #USR8FUNC
-+		STD 16,X			* SET USR8
 +
 +		LDD #CACHAVEC2
 +		STD RVEC2+1
@@ -435,6 +439,10 @@ index 0000000..d43444e
 +		STD RVEC19+1
 +		LDD #CACHAVEC20
 +		STD RVEC20+1
++		LDD #CACHAVEC24
++		STD RVEC24+1
++		LDA #$7E		* RVEC24 HAS A RTS NORMALLY, NOT A JMP
++		STA RVEC24
 +
 +		LDD #NEWBASDISPATCH
 +		STD COMVEC+3
@@ -2108,6 +2116,68 @@ index 0000000..d43444e
 +		STU	12,S
 +		CLR	NMIFLG
 +GORTI		RTI
++
++* UNCRUNCH A LINE INTO BASICâ€™S LINE INPUT BUFFER
++CACHAVEC24	LEAS	2,S
++		LEAX	4,X		MOVE POINTER PAST ADDRESS OF NEXT LINE AND LINE NUMBER
++		LDY	#LINBUF+1	UNCRUNCH LINE INTO LINE INPUT BUFFER
++		CLR	INQUOTFLAG
++NEXTUNCRUNCHAR	LDA	,X+		GET A CHARACTER
++		BEQ	ENDUNCRUNCH	BRANCH IF END OF LINE
++
++		CMPA	#'"		DOUBLE QUOTES?
++		BNE	NODBLQUOTE
++		COM	INQUOTFLAG	FLIP OUR "IN QUOTES" FLAG
++NODBLQUOTE	TST	INQUOTFLAG	ARE WE IN QUOTES?
++		BNE	ACTASIFNOTOK	YES, DO NOT DETOKENIZE
++
++		TSTA
++		BMI	CHARISTOKEN	BRANCH IF ITâ€™S A TOKEN
++ACTASIFNOTOK	CMPA	#':		CHECK FOR END OF SUB LINE
++		BNE	NOENDSUBLINE	BRANCH IF NOT END OF SUB LINE
++		LDB	,X		GET CHARACTER FOLLOWING COLON
++		CMPB	#$84		TOKEN FOR ELSE?
++		BEQ	NEXTUNCRUNCHAR	YES - DONâ€™T PUT IT IN BUFFER
++		CMPB	#$83		TOKEN FOR REMARK?
++		BEQ	NEXTUNCRUNCHAR	YES - DONâ€™T PUT IT IN BUFFER
++		FCB	SKP2		SKIP TWO BYTES
++UNKNOWNTOKEN	LDA	#'^		CARET INSTEAD OF EXCLAMATION POINT
++NOENDSUBLINE	BSR	PUT1UNCRUNCHED	PUT CHARACTER IN BUFFER
++		BRA	NEXTUNCRUNCHAR	GET ANOTHER CHARACTER
++* UNCRUNCH A TOKEN
++CHARISTOKEN	LDU	#COMVEC-10	FIRST DO COMMANDS
++		CMPA	#$FF		CHECK FOR SECONDARY TOKEN
++		BNE	TOKENISNOSEC	BRANCH IF NON SECONDARY TOKEN
++		LDA	,X+		GET SECONDARY TOKEN
++		LEAU	5,U		BUMP IT UP TO SECONDARY FUNCTIONS
++TOKENISNOSEC	ANDA	#$7F		MASK OFF BIT 7 OF TOKEN
++TRYNEXTCMDTBL	LEAU	10,U		MOVE TO NEXT COMMAND TABLE
++		TST	,U		IS THIS TABLE ENABLED?
++		BEQ	UNKNOWNTOKEN	NO - ILLEGAL TOKEN
++		SUBA	,U		SUBTRACT THE NUMBER OF TOKENS FROM THE CURRENT TOKEN NUMBER
++		BPL	TRYNEXTCMDTBL	BRANCH IF TOKEN NOT IN THIS TABLE
++		ADDA	,U		RESTORE TOKEN NUMBER RELATIVE TO THIS TABLE
++		LDU	1,U		POINT U TO COMMAND DICTIONARY TABLE
++ISTHISOURTOKEN	DECA			DECREMENT TOKEN NUMBER
++		BMI	UNCRUNCHLOOP	BRANCH IF THIS IS THE CORRECT TOKEN
++* SKIP THROUGH DICTIONARY TABLE TO START OF NEXT TOKEN
++SKIPKEYWORD	TST	,U+		GRAB A BYTE
++		BPL	SKIPKEYWORD	BRANCH IF BIT 7 NOT SET
++		BRA	ISTHISOURTOKEN	GO SEE IF THIS IS THE CORRECT TOKEN
++UNCRUNCHLOOP	LDA	,U		GET A CHARACTER FROM DICTIONARY TABLE
++		BSR	PUT1UNCRUNCHED	PUT CHARACTER IN BUFFER
++		TST	,U+		CHECK FOR START OF NEXT TOKEN
++		BPL	UNCRUNCHLOOP	BRANCH IF NOT DONE WITH THIS TOKEN
++		BRA	NEXTUNCRUNCHAR	GO GET ANOTHER CHARACTER
++PUT1UNCRUNCHED	CMPY	#LINBUF+LBUFMX	TEST FOR END OF LINE INPUT BUFFER
++		BCC	ENDUNCRUNCH	BRANCH IF AT END OF BUFFER
++
++		TST	INQUOTFLAG
++		BNE	PRESERVEHICHAR
++		ANDA	#$7F		MASK OFF BIT 7
++PRESERVEHICHAR	STA	,Y+		* SAVE CHARACTER IN BUFFER AND
++		CLR	,Y		* CLEAR NEXT CHARACTER SLOT IN BUFFER
++ENDUNCRUNCH	RTS			IGNORE RET ADDR (NOBODY NEEDS ACCD)
 +
 +* 6309 NATIVE MODE IRQ SERVICE (DIFFERENT STACK)
 +* (TODO)
@@ -4458,7 +4528,7 @@ index c3c1878..58dea1b 100644
                 end LC00C
 diff --git a/hdbdos/mk16kpackage.sh b/hdbdos/mk16kpackage.sh
 new file mode 100755
-index 0000000..7da6bc7
+index 0000000..ae31a8d
 --- /dev/null
 +++ b/hdbdos/mk16kpackage.sh
 @@ -0,0 +1,25 @@
@@ -4477,7 +4547,7 @@ index 0000000..7da6bc7
 +cp README-16K.txt "$_tmpdir" && \
 +sed -i "s/#TODAY#/$_today/" "$_tmpdir/README-16K.txt" && \
 +cd .. && \
-+git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh hdbdos/buildmsg.asm hdbdos/runcoco.sh hdbdos/pangram-pt.txt
++git add cocoroms/rom16kvars.asm hdbdos/README-16K.txt hdbdos/el.asm hdbdos/font51.asm hdbdos/font64.asm hdbdos/mk16kpackage.sh hdbdos/mkslacklist.sh hdbdos/build-hdbdos-16k.sh hdbdos/buildmsg.asm hdbdos/runcoco.sh hdbdos/pangram-pt.txt hdbdos/pangram-fr.txt
 +git diff origin/HEAD >"$_tmpdir/hdbdos-16k.patch" && \
 +[ -d ../hdbdos-16k ] && cp "$_tmpdir/hdbdos-16k.patch" ../hdbdos-16k/ && \
 +[ -d ../hdbdos-16k ] && cp "$_tmpdir/README-16K.txt" ../hdbdos-16k/ && \
@@ -4498,6 +4568,14 @@ index 0000000..c5a463d
 +for romlst in *.rom.lst; do
 +	echo "`echo $romlst | cut -d. -f1`: "`cat "$romlst" | gawk -n '($2=="ZZLAST"){print 0xDFFF - ("0x" $1) " bytes in 1st half" } ($2=="ZZLAST16"){print "/ " (0xFEFF - ("0x" $1)) " bytes in 2nd half"}'` >>slacks.txt
 +done
+diff --git a/hdbdos/pangram-fr.txt b/hdbdos/pangram-fr.txt
+new file mode 100644
+index 0000000..512b0a4
+--- /dev/null
++++ b/hdbdos/pangram-fr.txt
+@@ -0,0 +1 @@
++Voix et rôle ambiguë d'un c½ur qui, au zéphyr, préfère les jattes de kiwis.
+\ No newline at end of file
 diff --git a/hdbdos/pangram-pt.txt b/hdbdos/pangram-pt.txt
 new file mode 100644
 index 0000000..afa22e7
