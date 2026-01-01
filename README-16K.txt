@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Dec 31, 2025
+                          ToolShed GitHub repository as of Jan 1, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -163,8 +163,8 @@ SUMMARY OF CHANGES:
   doesn't skip leading zeroes and always returns a 32-character string. Hence,
   for example, HEX$(5) returns "00000000000000000000000000000101".
 - Special characters (numeric code above $7F) within string constants in BASIC
-  programs now show correctly in listing. (Still doesn't work when saving a
-  program with the ,A option)
+  programs now show correctly in listing -- works correctly whether the program
+  was saved in ASCII or tokenized mode.
 
 
 ADDED FILES:
