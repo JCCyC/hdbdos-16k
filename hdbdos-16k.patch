@@ -325,15 +325,15 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..8f3c4d7
+index 0000000..9e56880
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-01 11:24:47'
++BUILDMSG        FCC 'Build 2026-01-01 11:42:05'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..2fc62bf
+index 0000000..94dc3d5
 --- /dev/null
 +++ b/hdbdos/el.asm
 @@ -0,0 +1,1975 @@
@@ -520,7 +520,7 @@ index 0000000..2fc62bf
 +BITDISPS	FCB 1,6,3,0,5,2,7,4
 +BYTEDISPS	FCB 0,0,1,2,2,3,3,4
 +
-+EEMSG		FCC 'Thx Alex, Allen, Bob, Boisy, Steve, Tormod etc! -JC'
++EEMSG		FCC 'Thx Alex/Allen/Bill/Bob/Boisy/Steve/Tormod/etc! -JC'
 +		FCB 0
 +
 +SLOWIFNOSCREEN	STA $FFD6	* TO BE ON THE SAFE SIDE, EVERY CHARACTER
@@ -990,7 +990,7 @@ index 0000000..2fc62bf
 +		CLR CURX
 +		CLR CURY
 +		LDA 1,S
-+		CMPA #51
++		CMPA HRTEXTWIDTH
 +		BNE NOEE
 +		LDX #EEMSG
 +		JSR PRINTSTR
