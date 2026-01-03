@@ -37,8 +37,6 @@ ISSUES:
 
 - Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead.
-- LINE INPUT #file,var$ clobbers bit 7 of text data, whereas
-  INPUT #file,var$ doesn't.
 - Sometimes RENUM gives an error. Hard to reproduce for now.
 
 
