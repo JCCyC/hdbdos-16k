@@ -1,16 +1,16 @@
 # HDB-DOS/16
 
-A patch for HDB-DOS for the TRS-80 Color Computer, adding new functionalities by extending the ROM from 8KB to 16 KB.
+A patch for HDB-DOS for the TRS-80 Color Computer, adding new functionalities by extending the ROM from 8KB to 16KB.
 
 How to build your own HDB-DOS/16 (instructions for Linux):
 
 - Install all system requirements for building Toolshed and HDB-DOS
-    (See https://github.com/nitros9project/toolshed)
+    (See https://github.com/nitros9project/toolshed?tab=readme-ov-file#building-on-linux)
 - Build and install Toolshed
 - Clone this repository (you already did that)
 - Change to the repository directory (you probably already did that)
 - Run:
-    `./prepare-hdbdos.sh`
+    `./prepare-toolshed.sh`
 
 This script will:
 
