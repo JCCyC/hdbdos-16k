@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 1, 2026
+                          ToolShed GitHub repository as of Jan 3, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -54,6 +54,8 @@ TO DO:
 - Enhance RENUM so it can renumber the first portion of a program, as opposed
   to only the second portion like it is currently in ECB.
 - Allow GET #file,record# to obtain partial strings at EOF.
+  - Ditto for LINE INPUT when the last line of a text file is missing the
+    terminated newline character.
 - Utility to show memory layout.
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode.
@@ -62,12 +64,10 @@ TO DO:
   something like RESTORE GOTO <line> in order to RENUM to be able to deal
   with it.
 - Make handling of string constants in BASIC code a bit less US-centric:
-  - Characters > $7F between double quotes shouldn't be detokenized at LIST.
-  - If the program was saved in ASCII, even if you edit characters > $7F into
-    string constants, their bit 7 gets zeroed out upon LOAD. This needs to be
-    changed.
-  - Cook up a way to edit programs within BASIC in a way that (a) preserves
-    string constants, and (b) lets you type > $7F characters.
+  - Come up with a way to edit programs within BASIC in a way that lets you
+    type > $7F characters. Should work in direct mode too.
+  - Make BASIC somehow understand text case and character normalization.
+- Some kind of basic database-like search?
 
 
 WIP:
@@ -85,7 +85,7 @@ SUMMARY OF CHANGES:
   - Requires at least 4 graphics pages (6K) PCLEARed; forces PMODE 4.
   - PRINT@ works as expected, with the maximum position being 1223 in 51x24
     mode and 1535 in 64x24 mode.
-  - The charset defined in ROM is ISO-8859-15, although it's possible to
+  - The charset defined in ROM is Windows-1252, although it's possible to
     redefine it with HSET MEM COPY and HPOINT(5). (See below)
   - If an AUTOEXEC.BAS program is auto-executed at boot or by the DOS command,
     the screen is put in text mode, for compatibility with programs that don't
@@ -162,9 +162,12 @@ SUMMARY OF CHANGES:
 - New BIN$ function that does exactly what you'd expect -- but, unlike HEX$,
   doesn't skip leading zeroes and always returns a 32-character string. Hence,
   for example, HEX$(5) returns "00000000000000000000000000000101".
+  - This isn't set in stone by any means.
 - Special characters (numeric code above $7F) within string constants in BASIC
   programs now show correctly in listing -- works correctly whether the program
   was saved in ASCII or tokenized mode.
+  - Also, they now show correctly as a result of LINE INPUT if a text file has
+    such characters.
 
 
 ADDED FILES:
@@ -180,3 +183,4 @@ hdbdos/build-hdbdos-16k.sh
 hdbdos/buildmsg.asm
 hdbdos/runcoco.sh
 hdbdos/pangram-pt.txt
+hdbdos/pangram-fr.txt
