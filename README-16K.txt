@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 3, 2026
+                          ToolShed GitHub repository as of Jan 4, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -166,6 +166,8 @@ SUMMARY OF CHANGES:
   was saved in ASCII or tokenized mode.
   - Also, they now show correctly as a result of LINE INPUT if a text file has
     such characters.
+- Now you can type BASIC commands in lowercase. This works whether you are in
+  direct mode, inputting BASIC lines, or loading a program saved with ",A".
 
 
 ADDED FILES:

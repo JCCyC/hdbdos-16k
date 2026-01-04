@@ -109,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..b7dd424
+index 0000000..dc3e5f4
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,184 @@
+@@ -0,0 +1,186 @@
 +Package contents:
 +
 +- ROMs:
@@ -281,6 +281,8 @@ index 0000000..b7dd424
 +  was saved in ASCII or tokenized mode.
 +  - Also, they now show correctly as a result of LINE INPUT if a text file has
 +    such characters.
++- Now you can type BASIC commands in lowercase. This works whether you are in
++  direct mode, inputting BASIC lines, or loading a program saved with ",A".
 +
 +
 +ADDED FILES:
@@ -327,18 +329,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..4e99f58
+index 0000000..ae25912
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-03 11:39:25'
++BUILDMSG        FCC 'Build 2026-01-04 14:32:23'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..94dc3d5
+index 0000000..1d56990
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1975 @@
+@@ -0,0 +1,1999 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -411,16 +413,6 @@ index 0000000..94dc3d5
 +		LDD #USR8FUNC
 +		STD 16,X			* SET USR8
 +
-+		BSR SET51COLS
-+		JSR CCCLS		* STARTUP MESSAGE
-+		JSR GETPARMS
-+		LDX #LC139
-+		JSR PRINTSTR
-+		LDX #SIGNON
-+		JSR PRINTSTR
-+		LDX #BUILDMSG
-+		JSR PRINTSTR
-+
 +		LDD #CACHAVEC2
 +		STD RVEC2+1
 +		LDD #CACHAVEC3
@@ -441,10 +433,22 @@ index 0000000..94dc3d5
 +		STD RVEC19+1
 +		LDD #CACHAVEC20
 +		STD RVEC20+1
++		LDD #CACHAVEC23
++		STD RVEC23+1
 +		LDD #CACHAVEC24
 +		STD RVEC24+1
 +		LDA #$7E		* RVEC24 HAS A RTS NORMALLY, NOT A JMP
 +		STA RVEC24
++
++		BSR SET51COLS
++		JSR CCCLS		* STARTUP MESSAGE
++		JSR GETPARMS
++		LDX #LC139
++		JSR PRINTSTR
++		LDX #SIGNON
++		JSR PRINTSTR
++		LDX #BUILDMSG
++		JSR PRINTSTR
 +
 +		LDD #NEWBASDISPATCH
 +		STD COMVEC+3
@@ -2173,8 +2177,30 @@ index 0000000..94dc3d5
 +INPUTECHOCHAR	JSR	PUTCHR		ECHO IT TO SCREEN
 +		BRA	INPUTLINELOOP	GO SET SOME MORE
 +
-+
-+
++* LOWERCASE ACCEPTANCE CRUNCH PATCH
++CACHAVEC23	LEAS	2,S
++		LDX	,S		CHECK TO SEE IF THE ROUTINE CALLING ‘CRUNCH’
++		CMPX	#LAC9D		IS COMING FROM THE MAIN LOOP IN BASIC
++		BNE	NOTFROMDIRECT	AND BRANCH IF NOT
++		LDX	#L82F1		IF IT IS, DO NOT RETURN TO COLOR BASIC
++		STX	,S		BUT TO THE EXBAS PATCH INSTEAD
++NOTFROMDIRECT	LDX	CHARAD
++		CLR	INQUOTFLAG
++UPCASER		LDA	,X+
++		LBEQ	LB821+3		INPUT LINE ENDED, BACK TO BASIC
++		TST	INQUOTFLAG
++		BNE	TSTCRUNCHQUOT
++		CMPA	#$61		BELOW LOWERCASE A?
++		BLO	TSTCRUNCHQUOT
++		CMPA	#$7A		ABOVE LOWERCASE Z?
++		BHI	TSTCRUNCHQUOT
++		TFR	A,B
++		SUBB	#32
++		STB	-1,X
++TSTCRUNCHQUOT	CMPA	#$22		DOUBLE QUOTE?
++		BNE	UPCASER
++		COM	INQUOTFLAG
++		BRA	UPCASER
 +
 +* UNCRUNCH A LINE INTO BASIC’S LINE INPUT BUFFER
 +* ALTERED FOR HDB-DOS/16
