@@ -109,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..dc3e5f4
+index 0000000..2b1d37c
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,189 @@
 +Package contents:
 +
 +- ROMs:
@@ -167,8 +167,11 @@ index 0000000..dc3e5f4
 +- Enhance RENUM so it can renumber the first portion of a program, as opposed
 +  to only the second portion like it is currently in ECB.
 +- Allow GET #file,record# to obtain partial strings at EOF.
-+  - Ditto for LINE INPUT when the last line of a text file is missing the
-+    terminated newline character.
++  - Plan: Patch from C3D3 onwards. Calculate how many bytes we're missing,
++    subtract that from the record size, store that in a new DOS variable, read
++    the bytes and pad the rest with binary zeroes.
++- Ditto for LINE INPUT when the last line of a text file is missing the
++  terminating newline character.
 +- Utility to show memory layout.
 +- LOAD CHR$ to load an alternate text font for different code pages, either in
 +  its standard location when in RAM mode, or in user memory when in ROM mode.
@@ -329,11 +332,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..ae25912
+index 0000000..6299eb9
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-04 14:32:23'
++BUILDMSG        FCC 'Build 2026-01-09 16:13:10'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644

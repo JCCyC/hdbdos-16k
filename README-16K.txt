@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 4, 2026
+                          ToolShed GitHub repository as of Jan 9, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -52,8 +52,11 @@ TO DO:
 - Enhance RENUM so it can renumber the first portion of a program, as opposed
   to only the second portion like it is currently in ECB.
 - Allow GET #file,record# to obtain partial strings at EOF.
-  - Ditto for LINE INPUT when the last line of a text file is missing the
-    terminated newline character.
+  - Plan: Patch from C3D3 onwards. Calculate how many bytes we're missing,
+    subtract that from the record size, store that in a new DOS variable, read
+    the bytes and pad the rest with binary zeroes.
+- Ditto for LINE INPUT when the last line of a text file is missing the
+  terminating newline character.
 - Utility to show memory layout.
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode.
