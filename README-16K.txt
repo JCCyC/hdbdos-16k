@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 9, 2026
+                          ToolShed GitHub repository as of Jan 12, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -92,6 +92,7 @@ SUMMARY OF CHANGES:
     the screen is put in text mode, for compatibility with programs that don't
     expect to find themselves in a PMODE 4 that character output doesn't get
     you out of. (e.g. Sidekick)
+  - FlexiKey is not active when in high-res text mode.
 - LOCATE works as expected.
   - Works in the 32x16 screen too, unlike the CoCo 3.
 - Support for BUTTON function including 2nd joystick button. (Requires internal

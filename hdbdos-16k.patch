@@ -109,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..2b1d37c
+index 0000000..f7ea2b9
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,190 @@
 +Package contents:
 +
 +- ROMs:
@@ -207,6 +207,7 @@ index 0000000..2b1d37c
 +    the screen is put in text mode, for compatibility with programs that don't
 +    expect to find themselves in a PMODE 4 that character output doesn't get
 +    you out of. (e.g. Sidekick)
++  - FlexiKey is not active when in high-res text mode.
 +- LOCATE works as expected.
 +  - Works in the 32x16 screen too, unlike the CoCo 3.
 +- Support for BUTTON function including 2nd joystick button. (Requires internal
@@ -332,15 +333,15 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..6299eb9
+index 0000000..6072b0c
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-09 16:13:10'
++BUILDMSG        FCC 'Build 2026-01-12 05:36:19'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..1d56990
+index 0000000..4298b97
 --- /dev/null
 +++ b/hdbdos/el.asm
 @@ -0,0 +1,1999 @@
@@ -1221,7 +1222,7 @@ index 0000000..1d56990
 +		DECA
 +		STA	ERRNO
 +		PULS	D
-+		JMP	DVEC18
++		JMP	RUNM
 +
 +* CACHARS-AWARE DIRECTORY COLUMN COUNT
 +
@@ -4370,7 +4371,7 @@ index 0000000..d91769e
 +		FCB %10000010
 +		FCB %00001100
 diff --git a/hdbdos/hdbdos.asm b/hdbdos/hdbdos.asm
-index c3c1878..58dea1b 100644
+index c3c1878..a520161 100644
 --- a/hdbdos/hdbdos.asm
 +++ b/hdbdos/hdbdos.asm
 @@ -95,6 +95,7 @@ FATS           equ       $800
@@ -4550,7 +4551,7 @@ index c3c1878..58dea1b 100644
                 fcb       STOP2
  
  * Canned command for read, drive 0, track 0, sector 1
-@@ -5288,13 +5341,13 @@ C@             jmp       XVEC3               Console out
+@@ -5288,15 +5341,21 @@ C@             jmp       XVEC3               Console out
  * Source code reproduced from Rainbow - October 1984
  
  FLEXKY         lda       <$6F                Get device number
@@ -4565,9 +4566,17 @@ index c3c1878..58dea1b 100644
 -KEY            pshs      X,B                 Save registers
 +YESFLEXKY      pshs      X,B                 Save registers
                 ldx       7,s                 Where are we coming from?
++
++               IFDEF     ROM16K
++               cmpx      #LAC7C+3
++               ELSE
                 cmpx      #LA39A+3            The idle loop?
++               ENDC
++
                 beq       INIDLE              Yes, do FlexiKey
-@@ -5310,7 +5363,7 @@ GETTKN         com       INTFLG              Set to $FF
+                puls      b,x                 No, restore registers...
+                bra       JMPOUT              ...and go to old code
+@@ -5310,7 +5369,7 @@ GETTKN         com       INTFLG              Set to $FF
  RENTER         clr       HLDPTR              Clear flags
                 clr       INSERT              Clear flags
                 clr       WHLINE              Clear flags
@@ -4576,7 +4585,7 @@ index c3c1878..58dea1b 100644
                 cmpa      #9                  Right arrow?
                 beq       GETCHR              Yes, get a char from buffer
                 cmpa      #$5D                SHIFT-Right arrow?
-@@ -5330,6 +5383,13 @@ GETCHR         clr       INSERT              Reset insert flag
+@@ -5330,6 +5389,13 @@ GETCHR         clr       INSERT              Reset insert flag
                 bne       GOODCH              Not end flag so continue
                 clr       WHLINE              At end so reset entire line flag
                 bra       KYREAD              And get more from keyboard
@@ -4590,7 +4599,7 @@ index c3c1878..58dea1b 100644
  GOODCH         inc       HLDPTR              Point to next char
                 bra       EXIT                And return with char
  b@             cmpa      #$5B                SHIFT-Down? (Was SHIFT-@)
-@@ -5358,7 +5418,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
+@@ -5358,7 +5424,7 @@ d@             cmpa      #$15                SHIFT-Backspace?
                 beq       CLRPNT              Yes, reset hold pointer
                 cmpa      #$5C                SHIFT-Clear?
                 bne       CONXIT              No, not special insert
@@ -4599,19 +4608,19 @@ index c3c1878..58dea1b 100644
                 bra       CONXIT              And exit with it
  CLRPNT         clr       HLDPTR              Clear hold pointer
  CONXIT         cmpa      #32                 Is it a control character?
-@@ -5399,6 +5459,15 @@ DKWMST2       nop                            WARM START INDICATOR
+@@ -5399,6 +5465,15 @@ DKWMST2       nop                            WARM START INDICATOR
  
  ZZLAST         equ       *-1                 Cannot be > $DFFF!
  
 +               IFDEF     ROM16K
 +
-                fill      $39,MAGICDG+$2000-*
++               fill      $39,MAGICDG+$2000-*
 +               USE       el.asm
 +               USE       buildmsg.asm
 +ZZLAST16       equ       *-1                 Cannot be > $FEFF!
 +               fill      $4A,MAGICDG+$4000-*
 +               ELSE
-+               fill      $39,MAGICDG+$2000-*
+                fill      $39,MAGICDG+$2000-*
 +               ENDC
  
                 end LC00C
