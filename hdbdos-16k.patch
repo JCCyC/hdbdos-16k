@@ -109,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..f7ea2b9
+index 0000000..800f12c
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,192 @@
 +Package contents:
 +
 +- ROMs:
@@ -152,7 +152,9 @@ index 0000000..f7ea2b9
 +
 +- Errors in disk functions are sometimes not correctly intercepted - program
 +  silently ends instead.
-+- Sometimes RENUM gives an error. Hard to reproduce for now.
++- RENUM gives ?SN ERROR if:
++  - We're in a HSET COLOR mode with bit 1 set (reverse); AND
++  - There's a BASIC program in memory, even if one line only.
 +
 +
 +TO DO:
@@ -333,20 +335,20 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..6072b0c
+index 0000000..74cfc28
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-12 05:36:19'
++BUILDMSG        FCC 'Build 2026-01-22 15:11:22'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..4298b97
+index 0000000..8f8e94b
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1999 @@
+@@ -0,0 +1,1998 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
-+* Copyright (C) 2012-2021 Juan Carlos Castro y Castro <jccyc@gmail.com>
++* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
 +* This program is free software: you can redistribute it and/or modify
 +* it under the terms of the GNU Lesser General Public License as
@@ -2081,7 +2083,6 @@ index 0000000..4298b97
 +		BCS	RVLA340		BRANCH IF UPPER CASE ALPHA
 +		ANDA	#$DF
 +		BRA	RVLA342
-+		ANDA	#$BF
 +RVLA340		EORA	#$40
 +RVLA342		STA	,X+		STORE CHARACTER TO SCREEN
 +RVLA344		STX	CURPOS		SAVE CURRENT CHAR POSITION

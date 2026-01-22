@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 12, 2026
+                          ToolShed GitHub repository as of Jan 22, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -37,7 +37,9 @@ ISSUES:
 
 - Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead.
-- Sometimes RENUM gives an error. Hard to reproduce for now.
+- RENUM gives ?SN ERROR if:
+  - We're in a HSET COLOR mode with bit 1 set (reverse); AND
+  - There's a BASIC program in memory, even if one line only.
 
 
 TO DO:
