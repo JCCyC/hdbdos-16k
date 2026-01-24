@@ -109,10 +109,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..800f12c
+index 0000000..c16e435
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,189 @@
 +Package contents:
 +
 +- ROMs:
@@ -152,9 +152,6 @@ index 0000000..800f12c
 +
 +- Errors in disk functions are sometimes not correctly intercepted - program
 +  silently ends instead.
-+- RENUM gives ?SN ERROR if:
-+  - We're in a HSET COLOR mode with bit 1 set (reverse); AND
-+  - There's a BASIC program in memory, even if one line only.
 +
 +
 +TO DO:
@@ -335,18 +332,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..74cfc28
+index 0000000..49ca472
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-01-22 15:11:22'
++BUILDMSG        FCC 'Build 2026-01-24 10:04:18'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..8f8e94b
+index 0000000..5ee668e
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,1998 @@
+@@ -0,0 +1,2001 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -525,6 +522,7 @@ index 0000000..8f8e94b
 +
 +* ROM SUBROUTINE POINTERS
 +CLSRETN		EQU $A913	* ROM CLS RETURN ADDRESS ($BA62 ON DRAGON)
++RENUMRETN	EQU $8AFD	* ROM RENUM RETURN ADDRESS
 +
 +* LOOKUP TABLES FOR BYTE POSITION AND BIT DISPLACEMENTS
 +* OF A 5-BIT STRING WITHIN A 40-BIT BLOCK
@@ -981,6 +979,8 @@ index 0000000..8f8e94b
 +* CLS RAM HOOK
 +CACHAVEC22	PSHS X,CC		* CLS HOOK HAS TO PRESERVE FLAGS
 +		LDX 3,S			* GET RETURN ADDRESS FROM STACK
++		CMPX #RENUMRETN		* CHECK TO SEE IF IT'S THE RENUM ROUTINE
++		BEQ GODVEC22
 +		CMPX #CLSRETN		* CHECK TO SEE IF IT'S THE CLS ROUTINE
 +		BNE DVEC22IFNOINV
 +		JSR TSTHIRES		* ARE WE IN "OUR" VIDEO MODE?
@@ -1799,7 +1799,7 @@ index 0000000..8f8e94b
 +
 +ECBSECTOKASCMD	JMP	L8154+2
 +
-+ECBPRIMCMD	CMPA	#$C0		PCLEAR?
++TESTIFPCLEAR	CMPA	#$C0		PCLEAR?
 +		LBNE	L813C		NO, SOME OTHER ECB PRIMARY COMMAND
 +		
 +		JSR	GETNCH		PCLEAR - MANDATORY PARSE CHAR FOR ANY COMMAND
@@ -1814,7 +1814,7 @@ index 0000000..8f8e94b
 +		JMP	$96A5		THIS IS VERY VIOLENT BUT IT'S SUPPOSED TO WORK
 +
 +DXCVEC16K	CMPA	#$FF		SECONDARY COMMAND?
-+		BNE	ECBPRIMCMD
++		BNE	TESTIFPCLEAR
 +		JSR	GETNCH
 +		CMPA	#$9F		TIMER TOKEN?
 +		BNE	ECBSECTOKASCMD	SOME OTHER SEC. TOKEN USED AS COMMAND (MID$ ETC.)
