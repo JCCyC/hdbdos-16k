@@ -20,6 +20,8 @@ fi
 
 cd .. && \
 git clone https://github.com/nitros9project/toolshed && \
+rm -rf toolshed.orig && \
+cp -a toolshed toolshed.orig && \
 cd toolshed && \
 patch -p1 <"$CURDIR/hdbdos-16k.patch" && \
 make -C cocoroms && \
