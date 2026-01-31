@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Jan 24, 2026
+                          ToolShed GitHub repository as of Jan 31, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -48,26 +48,31 @@ TO DO:
 - Make the AND and OR operators accept values from -2^31 to 2^31-1.
   - Create a XOR operator
 - Manipulate the sector offset (HDBHI/HDBLO).
-- Enhance RENUM so it can renumber the first portion of a program, as opposed
-  to only the second portion like it is currently in ECB.
 - Allow GET #file,record# to obtain partial strings at EOF.
   - Plan: Patch from C3D3 onwards. Calculate how many bytes we're missing,
     subtract that from the record size, store that in a new DOS variable, read
     the bytes and pad the rest with binary zeroes.
 - Ditto for LINE INPUT when the last line of a text file is missing the
   terminating newline character.
-- Utility to show memory layout.
 - LOAD CHR$ to load an alternate text font for different code pages, either in
   its standard location when in RAM mode, or in user memory when in ROM mode.
 - A subset of ANSI control codes for use as a terminal.
 - RESTORE <line> like in other BASIC's. But the syntax will have to be
   something like RESTORE GOTO <line> in order to RENUM to be able to deal
   with it.
+
+
+PIPE DREAMS:
+
+- Enhance RENUM so it can renumber the first portion of a program, as opposed
+  to only the second portion like it is currently in ECB.
 - Make handling of string constants in BASIC code a bit less US-centric:
   - Come up with a way to edit programs within BASIC in a way that lets you
     type > $7F characters. Should work in direct mode too.
   - Make BASIC somehow understand text case and character normalization.
 - Some kind of basic database-like search?
+- Create a menu utility
+- Create a debug utility, including displaying a map of memory layout.
 
 
 WIP:
