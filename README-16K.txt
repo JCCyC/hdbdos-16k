@@ -60,6 +60,9 @@ TO DO:
 - RESTORE <line> like in other BASIC's. But the syntax will have to be
   something like RESTORE GOTO <line> in order to RENUM to be able to deal
   with it.
+- As much as possible, alter ROM tables in hdbdos.asm instead of redefining
+  duplicates in el.asm. (Vectors, tokens, command tables...)
+- Check sanity of non-16k compilation of ROMs
 
 
 PIPE DREAMS:
