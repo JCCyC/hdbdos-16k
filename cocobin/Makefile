@@ -6,7 +6,7 @@ clean:
 	rm -f test.bin cocobin.dsk
 
 test.bin: test.asm Makefile
-	lwasm -9 -b -otest.bin test.asm
+	lwasm -9 -b -otest.bin -ltest.lst test.asm
 
 cocobin.dsk: test.bin Makefile
 	rm -f cocobin.dsk

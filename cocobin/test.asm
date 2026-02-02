@@ -1,17 +1,43 @@
 		USE	ecb_equates.asm
 
 		org	$4000
-entry		jsr	LB146
-		ldx	FPA0+2
-		lda	,x
+entry		jsr	LB146		Check for string parameter
+		ldx	FPA0+2		x = string descriptor addr
+		lda	,x		acca = len (gotta be 1 or 2)
 		beq	badlen
 		cmpa	#2
 		bhi	badlen
-		ldx	2,x
-		ldd	,x
-gogivabf	jmp	GIVABF
-badlen		ldd	#-1
-		bra	gogivabf
+		ldu	2,x		u = string bytes
+		ldu	,u		u = first 2 bytes
+		stu	aryname		save 'em
+		cmpa	#2
+		beq	name2chars
+		clr	aryname+1	if 1-byte name, zero 2nd byte
+name2chars	jsr	stringizevar
+
+		ldx	ARYTAB		traverse array list
+arysearchloop	cmpx	ARYEND
+		bhs	arynotfound
+		ldd	aryname
+		cmpd	,x
+		beq	aryfound
+		ldd	2,x		jump to next array
+		leax	d,x
+		bra	arysearchloop
+
+aryfound	ldb	4,x		number of dimensions
+		decb
+		bne	notonedim	not one-dimensional -> error
+
+		ldd	5,x		return length of array
+					* (descriptors start at 7,x)
+		jmp	GIVABF
+
+arynotfound	jmp	L8CDD		NF error if array not found
+
+badlen		jmp	LB44A		FC error if bad parm
+
+notonedim	jmp	LB447		BS error if not one-dimensional
 
 
 *		ldx	#$400
@@ -22,5 +48,17 @@ badlen		ldd	#-1
 *		ldd	#'C'*256+' '
 *		std	,x++
 *		rts
+
+aryname		rmb	2
+
+stringizevar	lda	aryname+1
+		ora	#$80
+		sta	aryname+1
+		rts
+
+numerizevar	lda	aryname+1
+		anda	#$7F
+		sta	aryname+1
+		rts
 
 		end	entry

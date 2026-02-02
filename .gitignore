@@ -1,3 +1,4 @@
 16k-*.rom
 cocobin/*.bin
+cocobin/*.lst
 cocobin/*.dsk
