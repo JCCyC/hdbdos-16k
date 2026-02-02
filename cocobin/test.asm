@@ -1,6 +1,6 @@
 		USE	ecb_equates.asm
 
-		org	$4000
+		org	$7C00
 entry		jsr	LB146		Check for string parameter
 		ldx	FPA0+2		x = string descriptor addr
 		lda	,x		acca = len (gotta be 1 or 2)
@@ -30,7 +30,16 @@ aryfound	ldb	4,x		number of dimensions
 		bne	notonedim	not one-dimensional -> error
 
 		ldd	5,x		return length of array
-					* (descriptors start at 7,x)
+		std	nstrings	(descriptors start at 7,x)
+
+		leax	7,x
+		stx	firststrdesc
+outnextstr	bsr	outstrdesc
+		leax	5,x
+		subd	#1
+		bne	outnextstr
+
+		ldd	nstrings
 		jmp	GIVABF
 
 arynotfound	jmp	L8CDD		NF error if array not found
@@ -39,17 +48,17 @@ badlen		jmp	LB44A		FC error if bad parm
 
 notonedim	jmp	LB447		BS error if not one-dimensional
 
-
-*		ldx	#$400
-*		ldd	#'J'*256+'C'
-*		std	,x++
-*		ldd	#'C'*256+'Y'
-*		std	,x++
-*		ldd	#'C'*256+' '
-*		std	,x++
-*		rts
-
 aryname		rmb	2
+nstrings	rmb	2
+firststrdesc	rmb	2
+
+outstrdesc	pshs	x,d
+		ldb	,x
+		ldx	2,x
+		jsr	LB9A3-1
+		lda	#$0D
+		jsr	PUTCHR
+		puls	x,d,pc
 
 stringizevar	lda	aryname+1
 		ora	#$80
