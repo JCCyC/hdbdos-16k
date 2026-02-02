@@ -48,10 +48,10 @@ index cb207e8..2595aeb 100644
  	BNE	L8862	NOT SECONDARY
 diff --git a/cocoroms/rom16kvars.asm b/cocoroms/rom16kvars.asm
 new file mode 100644
-index 0000000..f9aec3a
+index 0000000..609923b
 --- /dev/null
 +++ b/cocoroms/rom16kvars.asm
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,23 @@
 +DATAAREA16	EQU *
 +CURX            RMB 1       CURSOR COLUMN POSITION (0-50 OR 0-63)
 +CURY            RMB 1       CURSOR ROW POSITION (0-23)
@@ -71,8 +71,10 @@ index 0000000..f9aec3a
 +TICKSPERSEC     RMB 1       WHAT TO DIVIDE TIMER/TIMERL BY TO GET SECONDS
 +ALTCOLOR	RMB 1       TEXT MODE COLOR: 0 = GREEN, 8 = ORANGE
 +FASTMODE	RMB 1       BIT 0 SET: FAST ROM ACCESS MODE (SAM R0, $FFD7)
-+INQUOTFLAG	RMB 1       FLAG 'WITHIN QUOTES' DURING UNCRUNCH
 +PREVBEGGRP	RMB 1       START OF VISIBLE WINDOW AT LAST GR-CHAR OUTPUT
++* SCRATCHPAD VARIABLES
++INQUOTFLAG	EQU DBUF1   FLAG 'WITHIN QUOTES' DURING UNCRUNCH
++
 diff --git a/hdbdos/Makefile b/hdbdos/Makefile
 index 7d0dddf..777ab20 100644
 --- a/hdbdos/Makefile
@@ -341,11 +343,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..da6ad73
+index 0000000..dd244da
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-01 10:26:39'
++BUILDMSG        FCC 'Build 2026-02-02 18:37:22'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
