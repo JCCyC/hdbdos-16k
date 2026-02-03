@@ -34,12 +34,21 @@ aryfound	ldb	4,x		number of dimensions
 
 		leax	7,x
 		stx	firststrdesc
-outnextstr	bsr	outstrdesc
+		clr	menuwidth
+outnextstr	pshs	a
+		lda	,x
+		cmpa	menuwidth
+		bls	notbiggestitem
+		sta	menuwidth
+notbiggestitem	puls	a
+		bsr	outstrdesc
 		leax	5,x
 		subd	#1
 		bne	outnextstr
 
-		ldd	nstrings
+*		ldd	nstrings
+		ldb	menuwidth
+		clra
 		jmp	GIVABF
 
 arynotfound	jmp	L8CDD		NF error if array not found
@@ -51,6 +60,7 @@ notonedim	jmp	LB447		BS error if not one-dimensional
 aryname		rmb	2
 nstrings	rmb	2
 firststrdesc	rmb	2
+menuwidth	rmb	1
 
 outstrdesc	pshs	x,d
 		ldb	,x
