@@ -1,3 +1,13 @@
 10 CLEAR 2000,&H7BFF
 20 LOADM"TEST"
 30 DEFUSR0=&H7C00
+40 DIM X$(3)
+50 X$(0)="Moe"
+60 X$(1)="Larry"
+70 X$(2)="Curly"
+80 X$(3)="Curly Joe"
+90 DIM X(2)
+100 X(0)=0
+110 X(1)=30
+120 X(2)=3
+130 PRINT USR0("X")
