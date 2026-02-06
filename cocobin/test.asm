@@ -4,32 +4,19 @@
 entry		jsr	LB146		Check for string parameter
 		ldx	FPA0+2		x = string descriptor addr
 		lda	,x		acca = len (gotta be 1 or 2)
-		beq	badlen
+		beq	errbadparm
 		cmpa	#2
-		bhi	badlen
+		bhi	errbadparm
 		ldu	2,x		u = string bytes
 		ldu	,u		u = first 2 bytes
 		stu	aryname		save 'em
 		cmpa	#2
 		beq	name2chars
 		clr	aryname+1	if 1-byte name, zero 2nd byte
-name2chars	jsr	stringizevar
-
-		ldx	ARYTAB		traverse array list
-arysearchloop	cmpx	ARYEND
-		bhs	arynotfound
-		ldd	aryname
-		cmpd	,x
-		beq	aryfound
-		ldd	2,x		jump to next array
-		leax	d,x
-		bra	arysearchloop
-
-aryfound	ldb	4,x		number of dimensions
-		decb
-		bne	notonedim	not one-dimensional -> error
-
-		ldd	5,x		return length of array
+name2chars	ldd	aryname
+		orb	#$80
+		bsr	aryfind		get array start in X
+		bsr	arygetlen	get array length in ACCD
 		std	nstrings	(descriptors start at 7,x)
 
 		leax	7,x
@@ -46,21 +33,18 @@ notbiggestitem	puls	a
 		subd	#1
 		bne	outnextstr
 
-*		ldd	nstrings
 		ldb	menuwidth
 		clra
 		jmp	GIVABF
 
-arynotfound	jmp	L8CDD		NF error if array not found
+* Error jumps
 
-badlen		jmp	LB44A		FC error if bad parm
+errnotfound	jmp	L8CDD		NF error if array not found
+errbadparm	jmp	LB44A		FC error if bad parm
+errsubscript	jmp	LB447		BS error if not one-dimensional
 
-notonedim	jmp	LB447		BS error if not one-dimensional
-
-aryname		rmb	2
-nstrings	rmb	2
-firststrdesc	rmb	2
-menuwidth	rmb	1
+* Outputs string to console, followed by a newline
+* X points do BASIC string descriptor
 
 outstrdesc	pshs	x,d
 		ldb	,x
@@ -70,14 +54,35 @@ outstrdesc	pshs	x,d
 		jsr	PUTCHR
 		puls	x,d,pc
 
-stringizevar	lda	aryname+1
-		ora	#$80
-		sta	aryname+1
-		rts
+* Finds array name in accd in array storage
+* Trashes U
+* Returns array pointer in X or ?NE ERROR
 
-numerizevar	lda	aryname+1
-		anda	#$7F
-		sta	aryname+1
-		rts
+aryfind		tfr	d,u
+		ldx	ARYTAB		traverse array list
+@loop		cmpx	ARYEND
+		bhs	errnotfound
+		cmpd	,x
+		beq	myrts
+		ldd	2,x		jump to next array
+		leax	d,x
+		tfr	u,d
+		bra	@loop
+
+* Returns number of items in one-dimensional array pointed to by X
+* Number of items returned in ACCD or ?BS ERROR if not one-dimensional
+
+arygetlen	ldb	4,x		number of dimensions
+		decb
+		bne	errsubscript	not one-dimensional -> error
+		ldd	5,x		return length of array
+myrts		rts			(descriptors start at 7,x)
+
+* Variables
+
+aryname		rmb	2
+nstrings	rmb	2
+firststrdesc	rmb	2
+menuwidth	rmb	1
 
 		end	entry
