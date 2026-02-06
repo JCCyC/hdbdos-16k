@@ -3,10 +3,12 @@ all: cocobin.dsk
 bin: test.bin
 
 clean:
-	rm -f test.bin cocobin.dsk
+	rm -f test.bin test.lst cocobin.dsk
 
 test.bin: test.asm Makefile
 	lwasm -9 -b -otest.bin -ltest.lst test.asm
+	sed -e 's/([^()]*):[0-9]*        //' <test.lst >test.lst.tmp
+	mv test.lst.tmp test.lst
 
 cocobin.dsk: test.bin test.bas Makefile
 	rm -f cocobin.dsk
