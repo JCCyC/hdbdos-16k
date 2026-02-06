@@ -1,3 +1,10 @@
+* LBB2F  -> fp(X)->FPA1
+* LBC14  -> fp(X)->FPA0
+* LBC35  -> FPA0->fp(X)
+* LB740  -> FPA0->X (0-65535)
+* LB4F3  -> ACCB->FPA0 (0-255)
+* GIVABF -> ACCD->FPA0 (0-65535)
+
 		USE	ecb_equates.asm
 
 		org	$7C00
