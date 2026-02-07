@@ -28,7 +28,7 @@ start		jsr	LB146		Check for string parameter
 		clr	aryname+1	if 1-byte name, zero 2nd byte
 name2chars	ldd	aryname
 		orb	#$80		look for string version of array
-		bsr	aryfind		get array start in X
+		jsr	aryfind		get array start in X
 		bsr	arygetlen	get array length in ACCD
 		std	nstrings	(descriptors start at 7,x)
 		leax	7,x
@@ -37,17 +37,17 @@ name2chars	ldd	aryname
 		ldd	aryname		look for numeric version of array
 		bsr	aryfind		get array start in X
 		bsr	arygetlen	get array length in ACCD
-		cmpd	#3		must have 3 elements
+		cmpd	#4		must have 4 elements
 		bne	errsubscript
 		leax	7,x
 		stx	firstnumdesc
 
-		leax	5,x		second descriptor = x pos - VALIDATE!
+		leax	10,x		3rd descriptor = x pos - VALIDATE!
 		jsr	LBC14
 		jsr	LB740
 		stx	xpos
 		ldx	firstnumdesc
-		leax	10,x		third descriptor = y pos - VALIDATE!
+		leax	15,x		4th descriptor = y pos - VALIDATE!
 		jsr	LBC14
 		jsr	LB740
 		stx	ypos
@@ -71,6 +71,12 @@ notbiggestitem	lda	xpos+1
 		leax	5,x
 		subd	#1
 		bne	outnextstr
+
+		ldd	nstrings	set selected item (for testing, last)
+		subd	#1
+		jsr	GIVABF
+		ldx	firstnumdesc
+		jsr	LBC35
 
 		ldb	menuwidth
 		clra
