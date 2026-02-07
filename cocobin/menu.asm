@@ -68,6 +68,13 @@ name2chars	ldd	aryname
 		leax	7,x
 		stx	firstnumdesc
 
+		jsr	LBC14		1st descriptor = selected item
+		jsr	LB740
+		cmpx	nstrings
+		blo	inlistrange
+		ldx	#0
+inlistrange	stx	selected
+		ldx	firstnumdesc
 		leax	10,x		3rd descriptor = x pos - VALIDATE!
 		jsr	LBC14
 		jsr	LB740
@@ -78,46 +85,90 @@ name2chars	ldd	aryname
 		jsr	LB740
 		stx	ypos
 
+* Display strings for the first time
+
 		ldx	firststrdesc
 		ldd	nstrings
+		ldu	#0
+		ldy	ypos
 		clr	menuwidth
-outnextstr	pshs	a
+outnextstr	pshs	d
 		lda	,x
 		cmpa	menuwidth
 		bls	notbiggestitem
 		sta	menuwidth
 notbiggestitem	lda	xpos+1
 		sta	CURX
-		lda	ypos+1
-		sta	CURY
-		inca
-		sta	ypos+1
-		puls	a
-		bsr	outstrdesc
-		leax	5,x
+		tfr	y,d
+		stb	CURY
+		leay	1,y
+		puls	d
+		cmpu	selected
+		bne	outnohilite
+		com	REVERSE
+		jsr	outstrdesc
+		com	REVERSE
+		bra	displaynxtitem
+outnohilite	bsr	outstrdesc
+displaynxtitem	leax	5,x
+		leau	1,u
 		subd	#1
 		bne	outnextstr
 
-		ldd	nstrings	set selected item (for testing, last)
-		subd	#1
-		jsr	GIVABF
-		ldx	firstnumdesc
-		jsr	LBC35
-
 getakey		jsr	[POLCAT]	return exit key (for testing, any)
 		beq	getakey
-		tfr	a,b
+		cmpa	#3		break?
+		beq	keyout
+		cmpa	#13		enter?
+		beq	keyout
+		cmpa	#8		left arrow?
+		beq	keyout
+		cmpa	#9		right arrow?
+		beq	keyout
+		cmpa	#94		up arrow?
+		beq	uparrow
+		cmpa	#10		down arrow?
+		beq	downarrow
+		bra	getakey
+
+uparrow		ldd	selected
+		cmpd	#0
+		beq	getakey
+		subd	#1
+		bra	chgsel
+
+downarrow	ldd	selected
+		addd	#1
+		cmpd	nstrings
+		bhs	getakey
+
+chgsel		tfr	d,u		U = new selected
+		ldd	selected
+		tfr	d,x		X = old selected
+		stu	selected
+		tfr	x,d
+		bsr	disp1item
+		tfr	u,d
+		bsr	disp1item
+		bra	getakey
+
+keyout		tfr	a,b		store exit key in 2nd item of num array
 		jsr	LB4F3
 		ldx	firstnumdesc
 		leax	5,x
 		jsr	LBC35
 
-		ldb	menuwidth
+		ldd	selected	selected item in 1st item of num array
+		jsr	GIVABF
+		ldx	firstnumdesc
+		jsr	LBC35
+
+		ldb	menuwidth	for now, return menu width
 		clra
 		jmp	GIVABF
 
 * Outputs string to console
-* X points do BASIC string descriptor
+* X points to BASIC string descriptor
 
 outstrdesc	pshs	x,d
 		ldb	,x
@@ -127,6 +178,37 @@ outstrdesc	pshs	x,d
 *		jsr	PUTCHR
 		puls	x,d,pc
 
+* Display ACCDth string in position
+
+disp1item	pshs	d,x
+		ldx	firststrdesc
+		bsr	accdx5
+		leax	d,x
+		ldd	,s
+		addd	ypos
+		stb	CURY
+		ldb	xpos+1
+		stb	CURX
+		ldd	,s
+		cmpd	selected
+		bne	noneedtorev
+		com	REVERSE
+		bsr	outstrdesc
+		com	REVERSE
+		bra	showed1item
+noneedtorev	bsr	outstrdesc
+showed1item	puls	d,x,pc
+
+* Multiply ACCD by five
+
+accdx5		pshs	d
+		aslb
+		rola
+		aslb
+		rola
+		addd	,s++
+		rts
+
 * Variables
 
 aryname		rmb	2
@@ -135,6 +217,7 @@ firststrdesc	rmb	2
 firstnumdesc	rmb	2
 xpos		rmb	2
 ypos		rmb	2
+selected	rmb	2
 menuwidth	rmb	1
 
 		end	entry
