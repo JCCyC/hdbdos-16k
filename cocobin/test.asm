@@ -13,6 +13,32 @@ ROM16K		equ	1
 entry		bra	start
 
 errbadparm	jmp	LB44A		FC error if bad parm
+errsubscript	jmp	LB447		BS error if not one-dimensional
+errnotfound	jmp	L8CDD		NF error if array not found
+
+* Returns number of items in one-dimensional array pointed to by X
+* Number of items returned in ACCD or ?BS ERROR if not one-dimensional
+
+arygetlen	ldb	4,x		number of dimensions
+		decb
+		bne	errsubscript	not one-dimensional -> error
+		ldd	5,x		return length of array
+myrts		rts			(descriptors start at 7,x)
+
+* Finds array name in accd in array storage
+* Trashes U
+* Returns array pointer in X or ?NE ERROR
+
+aryfind		tfr	d,u
+		ldx	ARYTAB		traverse array list
+@loop		cmpx	ARYEND
+		bhs	errnotfound
+		cmpd	,x
+		beq	myrts
+		ldd	2,x		jump to next array
+		leax	d,x
+		tfr	u,d
+		bra	@loop
 
 start		jsr	LB146		Check for string parameter
 		ldx	FPA0+2		x = string descriptor addr
@@ -28,7 +54,7 @@ start		jsr	LB146		Check for string parameter
 		clr	aryname+1	if 1-byte name, zero 2nd byte
 name2chars	ldd	aryname
 		orb	#$80		look for string version of array
-		jsr	aryfind		get array start in X
+		bsr	aryfind		get array start in X
 		bsr	arygetlen	get array length in ACCD
 		std	nstrings	(descriptors start at 7,x)
 		leax	7,x
@@ -78,36 +104,17 @@ notbiggestitem	lda	xpos+1
 		ldx	firstnumdesc
 		jsr	LBC35
 
+getakey		jsr	[POLCAT]	return exit key (for testing, any)
+		beq	getakey
+		tfr	a,b
+		jsr	LB4F3
+		ldx	firstnumdesc
+		leax	5,x
+		jsr	LBC35
+
 		ldb	menuwidth
 		clra
 		jmp	GIVABF
-
-errsubscript	jmp	LB447		BS error if not one-dimensional
-errnotfound	jmp	L8CDD		NF error if array not found
-
-* Returns number of items in one-dimensional array pointed to by X
-* Number of items returned in ACCD or ?BS ERROR if not one-dimensional
-
-arygetlen	ldb	4,x		number of dimensions
-		decb
-		bne	errsubscript	not one-dimensional -> error
-		ldd	5,x		return length of array
-myrts		rts			(descriptors start at 7,x)
-
-* Finds array name in accd in array storage
-* Trashes U
-* Returns array pointer in X or ?NE ERROR
-
-aryfind		tfr	d,u
-		ldx	ARYTAB		traverse array list
-@loop		cmpx	ARYEND
-		bhs	errnotfound
-		cmpd	,x
-		beq	myrts
-		ldd	2,x		jump to next array
-		leax	d,x
-		tfr	u,d
-		bra	@loop
 
 * Outputs string to console
 * X points do BASIC string descriptor
