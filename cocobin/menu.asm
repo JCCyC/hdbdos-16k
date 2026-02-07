@@ -115,7 +115,7 @@ displaynxtitem	leax	5,x
 		subd	#1
 		bne	outnextstr
 
-getakey		jsr	[POLCAT]	return exit key (for testing, any)
+getakey		jsr	[POLCAT]	get a key
 		beq	getakey
 		cmpa	#3		break?
 		beq	keyout
@@ -143,10 +143,8 @@ downarrow	ldd	selected
 		bhs	getakey
 
 chgsel		tfr	d,u		U = new selected
-		ldd	selected
-		tfr	d,x		X = old selected
+		ldd	selected	ACCD = old selected
 		stu	selected
-		tfr	x,d
 		bsr	disp1item
 		tfr	u,d
 		bsr	disp1item
