@@ -9,7 +9,7 @@
 ROM16K		equ	1
 		USE	ecb_equates.asm
 
-		org	$7C00
+		org	$7E00
 entry		bra	start
 
 errbadparm	jmp	LB44A		FC error if bad parm
@@ -85,6 +85,23 @@ inlistrange	stx	selected
 		jsr	LB740
 		stx	ypos
 
+* Sanity checks
+
+		ldd	nstrings
+		addd	ypos
+		bcs	erroutofstring
+		cmpd	#24
+		bhi	erroutofstring
+		ldb	HRTEXTWIDTH
+		clra
+		subd	xpos
+		bcc	gotmaxwidth
+erroutofstring	ldb	#2*13		OS error if menu too large
+		jmp	LAC46
+gotmaxwidth	std	maxwidth
+
+*		std	$400		DEBUG
+
 * Display strings for the first time
 
 		ldx	firststrdesc
@@ -95,9 +112,14 @@ inlistrange	stx	selected
 outnextstr	pshs	d
 		lda	,x
 		cmpa	menuwidth
-		bls	notbiggestitem
+		bls	notoverlylong
 		sta	menuwidth
-notbiggestitem	lda	xpos+1
+		tfr	a,b
+		clra
+		cmpd	maxwidth
+		bls	notoverlylong
+errstrtoolong	jmp	$B625		LS error if menu item overshoots width
+notoverlylong	lda	xpos+1
 		sta	CURX
 		tfr	y,d
 		stb	CURY
@@ -216,6 +238,7 @@ firstnumdesc	rmb	2
 xpos		rmb	2
 ypos		rmb	2
 selected	rmb	2
+maxwidth	rmb	2
 menuwidth	rmb	1
 
 		end	entry
