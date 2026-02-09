@@ -1,5 +1,5 @@
 100 CLS
-110 CLEAR 2000,&H7BFF:CLS
+110 CLEAR 2000,&H7BFF
 120 LOADM"MENU"
 130 DEFUSR0=&H7C00
 140 DIM X$(10)
@@ -18,11 +18,11 @@
 265 'Flags: 1=Accept Left Arrow
 266 '       2=Accept Right Arrow
 267 '       4=Accept Break
-268 '       8=Accept Letters
-269 '      16=Wipe menu area on exit
-270 X(0)=8 'Selected item
-280 X(1)=4 'Flags (in), Exit key (out)
-290 X(2)=30
+269 '       8=Wipe menu area on exit
+268 '      16=Accept Letters (TODO)
+270 X(0)=8  'Selected item
+280 X(1)=12 'Flags (in), Exit key (out)
+290 X(2)=36
 300 X(3)=3
 310 X=USR0("X")
 320 LOCATE 0,6

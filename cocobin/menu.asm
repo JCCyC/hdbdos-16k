@@ -15,10 +15,10 @@ MFLAG_LARROW	equ	1
 MFLAG_RARROW	equ	2
 * Allow exiting menu with Break
 MFLAG_BREAK	equ	4
-* Future - allow F to select "[F]ile", X to select "e[X]it" etc
-MFLAG_LETTERS	equ	8
 * Future - wipe menu area upon exit
 MFLAG_WIPE	equ	8
+* Future - allow F to select "[F]ile", X to select "e[X]it" etc
+MFLAG_LETTERS	equ	16
 
 		org	$7C00
 entry		bra	start
@@ -176,6 +176,8 @@ getakey		jsr	[POLCAT]	get a key
 		beq	downarrow
 		bra	getakey
 
+* These keys will only be acted upon if flags allow it
+
 tstkeybreak	ldb	menuflags
 		andb	#MFLAG_BREAK
 		bne	keyout
@@ -188,6 +190,8 @@ tstkeyrarrow	ldb	menuflags
 		andb	#MFLAG_RARROW
 		bne	keyout
 		bra	getakey
+
+* Handle navigation and selection change
 
 uparrow		ldd	selected
 		cmpd	#0
@@ -208,7 +212,9 @@ chgsel		tfr	d,u		U = new selected
 		bsr	disp1item
 		bra	getakey
 
-keyout		tfr	a,b		store exit key in 2nd item of num array
+* Terminating key has been pressed
+
+keyout		tfr	a,b		exit key in 2nd item of num array
 		pshs	a
 		jsr	LB4F3
 		ldx	firstnumdesc
@@ -220,10 +226,15 @@ keyout		tfr	a,b		store exit key in 2nd item of num array
 		ldx	firstnumdesc
 		jsr	LBC35
 
-		puls	a
+		lda	#MFLAG_WIPE	wipe menu area if flags say so
+		anda	menuflags
+		beq	goreturnval
+		bsr	wipemenu
+
+goreturnval	puls	a
 		cmpa	#13
 		beq	retselected
-		ldd	#$FFFF		return -1 if exited with non-selection
+		ldd	#$FFFF		return -1 if exited with non-Enter key
 		bra	retthisvalue
 retselected	ldd	selected	return selected item if pressed Enter
 retthisvalue	jmp	GIVABF
@@ -239,7 +250,7 @@ outstrdesc	pshs	x,d
 *		jsr	PUTCHR
 		puls	x,d,pc
 
-* Display ACCDth string in position
+* Display ACCDth string in position and in reverse if selected
 
 disp1item	pshs	d,x
 		ldx	firststrdesc
@@ -270,8 +281,33 @@ accdx5		pshs	d
 		addd	,s++
 		rts
 
-* Variables
+* Wipe entire menu area
 
+wipemenu	lda	ypos+1
+		sta	CURY
+		lda	nstrings+1
+		pshs	a
+loopframe	lda	xpos+1
+		sta	CURX
+		ldb	menuwidth
+loopline	lda	#$20
+		pshs	b
+		jsr	PUTCHR
+		puls	b
+		decb
+		bne	loopline
+		tst	CURX		did we wrap back to col 0?
+		beq	alreadynexty	don't increment CURY if so
+		inc	CURY
+alreadynexty	dec	,s
+		bne	loopframe
+		puls	a,pc
+
+programend	equ	*
+programlength	equ	*-entry
+
+* Variables
+		org	DBUF1
 aryname		rmb	2
 nstrings	rmb	2
 firststrdesc	rmb	2
