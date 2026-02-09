@@ -20,7 +20,7 @@ MFLAG_LETTERS	equ	8
 * Future - wipe menu area upon exit
 MFLAG_WIPE	equ	8
 
-		org	$7E00
+		org	$7C00
 entry		bra	start
 
 errbadparm	jmp	LB44A		FC error if bad parm
@@ -209,6 +209,7 @@ chgsel		tfr	d,u		U = new selected
 		bra	getakey
 
 keyout		tfr	a,b		store exit key in 2nd item of num array
+		pshs	a
 		jsr	LB4F3
 		ldx	firstnumdesc
 		leax	5,x
@@ -219,9 +220,13 @@ keyout		tfr	a,b		store exit key in 2nd item of num array
 		ldx	firstnumdesc
 		jsr	LBC35
 
-		ldb	menuwidth	for now, return menu width
-		clra
-		jmp	GIVABF
+		puls	a
+		cmpa	#13
+		beq	retselected
+		ldd	#$FFFF		return -1 if exited with non-selection
+		bra	retthisvalue
+retselected	ldd	selected	return selected item if pressed Enter
+retthisvalue	jmp	GIVABF
 
 * Outputs string to console
 * X points to BASIC string descriptor
