@@ -15,8 +15,13 @@
 240 X$(9)="Stan Laurel"
 250 X$(10)="Oliver Hardy"
 260 DIM X(3)
+265 'Flags: 1=Accept Left Arrow
+266 '       2=Accept Right Arrow
+267 '       4=Accept Break
+268 '       8=Accept Letters
+269 '      16=Wipe menu area on exit
 270 X(0)=8 'Selected item
-280 X(1)=0 'Exit key
+280 X(1)=4 'Flags (in), Exit key (out)
 290 X(2)=30
 300 X(3)=3
 310 X=USR0("X")

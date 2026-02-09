@@ -9,6 +9,17 @@
 ROM16K		equ	1
 		USE	ecb_equates.asm
 
+* Allow exiting menu with left arrow
+MFLAG_LARROW	equ	1
+* Allow exiting menu with right arrow
+MFLAG_RARROW	equ	2
+* Allow exiting menu with Break
+MFLAG_BREAK	equ	4
+* Future - allow F to select "[F]ile", X to select "e[X]it" etc
+MFLAG_LETTERS	equ	8
+* Future - wipe menu area upon exit
+MFLAG_WIPE	equ	8
+
 		org	$7E00
 entry		bra	start
 
@@ -74,18 +85,29 @@ name2chars	ldd	aryname
 		blo	inlistrange
 		ldx	#0
 inlistrange	stx	selected
+
+		ldx	firstnumdesc
+		leax	5,x		2nd descriptor = flags
+		jsr	LBC14
+		jsr	LB740
+		tfr	x,d
+		tsta
+		lbne	errbadparm
+		stb	menuflags
+
 		ldx	firstnumdesc
 		leax	10,x		3rd descriptor = x pos - VALIDATE!
 		jsr	LBC14
 		jsr	LB740
 		stx	xpos
+
 		ldx	firstnumdesc
 		leax	15,x		4th descriptor = y pos - VALIDATE!
 		jsr	LBC14
 		jsr	LB740
 		stx	ypos
 
-* Sanity checks
+* Some sanity checks
 
 		ldd	nstrings
 		addd	ypos
@@ -131,7 +153,7 @@ notoverlylong	lda	xpos+1
 		jsr	outstrdesc
 		com	REVERSE
 		bra	displaynxtitem
-outnohilite	bsr	outstrdesc
+outnohilite	jsr	outstrdesc
 displaynxtitem	leax	5,x
 		leau	1,u
 		subd	#1
@@ -139,18 +161,32 @@ displaynxtitem	leax	5,x
 
 getakey		jsr	[POLCAT]	get a key
 		beq	getakey
-		cmpa	#3		break?
-		beq	keyout
-		cmpa	#13		enter?
-		beq	keyout
+		tfr	a,b
 		cmpa	#8		left arrow?
-		beq	keyout
+		beq	tstkeylarrow
 		cmpa	#9		right arrow?
+		beq	tstkeyrarrow
+		cmpa	#3		break?
+		beq	tstkeybreak
+		cmpa	#13		enter?
 		beq	keyout
 		cmpa	#94		up arrow?
 		beq	uparrow
 		cmpa	#10		down arrow?
 		beq	downarrow
+		bra	getakey
+
+tstkeybreak	ldb	menuflags
+		andb	#MFLAG_BREAK
+		bne	keyout
+		bra	getakey
+tstkeylarrow	ldb	menuflags
+		andb	#MFLAG_LARROW
+		bne	keyout
+		bra	getakey
+tstkeyrarrow	ldb	menuflags
+		andb	#MFLAG_RARROW
+		bne	keyout
 		bra	getakey
 
 uparrow		ldd	selected
@@ -238,6 +274,7 @@ firstnumdesc	rmb	2
 xpos		rmb	2
 ypos		rmb	2
 selected	rmb	2
+menuflags	rmb	2
 maxwidth	rmb	2
 menuwidth	rmb	1
 
