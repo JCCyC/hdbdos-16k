@@ -15,15 +15,15 @@
 240 X$(9)="Stan Laurel"
 250 X$(10)="Oliver Hardy"
 260 DIM X(3)
-265 'Flags: 1=Accept Left Arrow
-266 '       2=Accept Right Arrow
-267 '       4=Accept Break
-269 '       8=Wipe menu area on exit
-268 '      16=Accept Letters (TODO)
-270 X(0)=8  'Selected item
-280 X(1)=12 'Flags (in), Exit key (out)
-290 X(2)=36
-300 X(3)=3
-310 X=USR0("X")
-320 LOCATE 0,6
-330 PRINT X;X(0);X(1)
+270 'Flags: 1=Accept Left Arrow
+280 '       2=Accept Right Arrow
+290 '       4=Accept Break
+300 '       8=Wipe menu area on exit
+310 '      16=Accept Letters (TODO)
+320 X(0)=8  'Selected item
+330 X(1)=12 'Flags (in), Exit key (out)
+340 X(2)=36
+350 X(3)=3
+360 X=USR0("X")
+370 LOCATE 0,6
+380 PRINT X;X(0);X(1)
