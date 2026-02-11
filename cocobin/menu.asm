@@ -281,39 +281,39 @@ accdx5		pshs	d
 		addd	,s++
 		rts
 
-* Wipe entire menu area - fast version is BUGGY
+* Wipe entire menu area (trashes some pixels left and right)
 
-wipemenu	ldb	xpos+1
-		lda	ypos+1
+wipemenu	ldb	xpos+1		get byte occupied by first
+		lda	ypos+1		char of first line
 		jsr	[$E004]		GETMEMPOSXY
-		sty	memini
-		ldb	xpos+1
-		addb	menuwidth
+		sty	memini		and save it
+		ldb	xpos+1		get byte occupied by last
+		addb	menuwidth	char of last line
 		decb
 		lda	ypos+1
 		jsr	[$E004]		GETMEMPOSXY
-		cmpb	#4
-		bls	nousenextbyte
+		cmpb	#4		one more byte if char is on
+		bls	nousenextbyte	bit 5 or ahead
 		leay	1,y
-nousenextbyte	sty	memend1stline
+nousenextbyte	sty	memend1stline	save addr of last byte of line
 		ldb	nstrings+1
 		aslb
 		aslb
 		aslb
-		stb	ngrlineswipe
+		stb	ngrlineswipe	num of items * 8 = graphics lines
 		ldd	memend1stline
 		subd	memini
-		incb
+		incb			ACCB = bytes per line
 		stb	ngrbyteswipe
-		lda	REVERSE
+		lda	REVERSE		fill with background pattern
 		ldx	memini
-wipealine	tfr	x,u
+wipealine	tfr	x,u		outer loop: wipe lines
 		ldb	ngrbyteswipe
-wipeabyte	sta	,x+
+wipeabyte	sta	,x+		inner loop: wipe bytes within line
 		decb
 		bne	wipeabyte
 		tfr	u,x
-		leax	32,x
+		leax	32,x		next line is always 32 bytes ahead
 		dec	ngrlineswipe
 		bne	wipealine
 		rts
