@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Feb 9, 2026
+                          ToolShed GitHub repository as of Feb 11, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -63,6 +63,8 @@ TO DO:
 - As much as possible, alter ROM tables in hdbdos.asm instead of redefining
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
+- INKEY$(S) waits S seconds (like TIMER FOR) and returns a key or "" if no
+  key was pressed
 
 
 PIPE DREAMS:
@@ -82,6 +84,7 @@ WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
+- Finishing the menu utility (save and restore screen mem)
 
 
 SUMMARY OF CHANGES:

@@ -281,27 +281,62 @@ accdx5		pshs	d
 		addd	,s++
 		rts
 
-* Wipe entire menu area
+* Wipe entire menu area - fast version is BUGGY
 
-wipemenu	lda	ypos+1
-		sta	CURY
-		lda	nstrings+1
-		pshs	a
-loopframe	lda	xpos+1
-		sta	CURX
-		ldb	menuwidth
-loopline	lda	#$20
-		pshs	b
-		jsr	PUTCHR
-		puls	b
+wipemenu	ldb	xpos+1
+		lda	ypos+1
+		jsr	[$E004]		GETMEMPOSXY
+		sty	memini
+		ldb	xpos+1
+		addb	menuwidth
 		decb
-		bne	loopline
-		tst	CURX		did we wrap back to col 0?
-		beq	alreadynexty	don't increment CURY if so
-		inc	CURY
-alreadynexty	dec	,s
-		bne	loopframe
-		puls	a,pc
+		lda	ypos+1
+		jsr	[$E004]		GETMEMPOSXY
+		cmpb	#4
+		bls	nousenextbyte
+		leay	1,y
+nousenextbyte	sty	memend1stline
+		ldb	nstrings+1
+		aslb
+		aslb
+		aslb
+		stb	ngrlineswipe
+		ldd	memend1stline
+		subd	memini
+		incb
+		stb	ngrbyteswipe
+		lda	REVERSE
+		ldx	memini
+wipealine	tfr	x,u
+		ldb	ngrbyteswipe
+wipeabyte	sta	,x+
+		decb
+		bne	wipeabyte
+		tfr	u,x
+		leax	32,x
+		dec	ngrlineswipe
+		bne	wipealine
+		rts
+
+* wipemenuold	lda	ypos+1
+* 		sta	CURY
+* 		lda	nstrings+1
+* 		pshs	a
+* loopframe	lda	xpos+1
+* 		sta	CURX
+* 		ldb	menuwidth
+* loopline	lda	#$20
+* 		pshs	b
+* 		jsr	PUTCHR
+* 		puls	b
+* 		decb
+* 		bne	loopline
+* 		tst	CURX		did we wrap back to col 0?
+* 		beq	alreadynexty	don't increment CURY if so
+* 		inc	CURY
+* alreadynexty	dec	,s
+* 		bne	loopframe
+* 		puls	a,pc
 
 programend	equ	*
 programlength	equ	*-entry
@@ -317,6 +352,10 @@ ypos		rmb	2
 selected	rmb	2
 menuflags	rmb	2
 maxwidth	rmb	2
+memini		rmb	2
+memend1stline	rmb	2
 menuwidth	rmb	1
+ngrlineswipe	rmb	1
+ngrbyteswipe	rmb	1
 
 		end	entry

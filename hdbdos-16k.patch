@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..aac4e10
+index 0000000..8e2f607
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,200 @@
 +Package contents:
 +
 +- ROMs:
@@ -181,6 +181,8 @@ index 0000000..aac4e10
 +- As much as possible, alter ROM tables in hdbdos.asm instead of redefining
 +  duplicates in el.asm. (Vectors, tokens, command tables...)
 +- Check sanity of non-16k compilation of ROMs
++- INKEY$(S) waits S seconds (like TIMER FOR) and returns a key or "" if no
++  key was pressed
 +
 +
 +PIPE DREAMS:
@@ -200,6 +202,7 @@ index 0000000..aac4e10
 +
 +- Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
 +  for different stack layout in NMI (simple) and IRQ (complicated) handlers.
++- Finishing the menu utility (save and restore screen mem)
 +
 +
 +SUMMARY OF CHANGES:
@@ -343,18 +346,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..9f4b82d
+index 0000000..4d24515
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-09 11:12:48'
++BUILDMSG        FCC 'Build 2026-02-11 15:45:22'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..edaa419
+index 0000000..a0de172
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2011 @@
+@@ -0,0 +1,2015 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -377,7 +380,10 @@ index 0000000..edaa419
 +AMERICLOCK	EQU 60
 +
 +		ORG $E000
-+		* BRA INIT16K
++		BRA INIT16K
++
++		FDB	TSTHIRES	[$E002] - TEST IF IN HI-RES TXT MODE
++		FDB	GETMEMPOSXY	[$E004] - OBTAIN MEM POS OF CHAR CELL
 +
 +INIT16K		PSHS A,B,X,Y,U
 +
@@ -547,6 +553,7 @@ index 0000000..edaa419
 +SLOWIFNOSCREEN	STA $FFD6	* TO BE ON THE SAFE SIDE, EVERY CHARACTER
 +		JMP DVEC3	* OUTPUT NOT TO THE SCREEN WILL BE IN
 +				* STANDARD CLOCK SPEED (0.87 MHz)
++
 +* CONSOLE OUT RAM HOOK
 +CACHAVEC3	PSHS B
 +		LDB DEVNUM
@@ -1891,7 +1898,7 @@ index 0000000..edaa419
 +		ADCA	TIMVALMSW
 +		ANDCC	#$FF-IntMasks
 +		PSHS	D
-+		LDB	TIMVAL
++		LDB	TIMVAL+1
 +		PSHS	B
 +TIMERFORLOOP	CMPB	,S
 +		BEQ	NOBRKCHK
