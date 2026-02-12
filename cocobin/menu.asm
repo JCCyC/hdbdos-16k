@@ -124,41 +124,26 @@ gotmaxwidth	std	maxwidth
 
 *		std	$400		DEBUG
 
-* Display strings for the first time
+* Determine menu width
 
 		ldx	firststrdesc
 		ldd	nstrings
-		ldu	#0
-		ldy	ypos
 		clr	menuwidth
-outnextstr	pshs	d
+loopgetwidth	pshs	d
 		lda	,x
 		lbeq	errbadparm
 		cmpa	menuwidth
-		bls	notoverlylong
+		bls	noexcesswidth
 		sta	menuwidth
 		tfr	a,b
 		clra
 		cmpd	maxwidth
-		bls	notoverlylong
+		bls	noexcesswidth
 errstrtoolong	jmp	$B625		LS error if menu item overshoots width
-notoverlylong	lda	xpos+1
-		sta	CURX
-		tfr	y,d
-		stb	CURY
-		leay	1,y
+noexcesswidth	leax	5,x
 		puls	d
-		cmpu	selected
-		bne	outnohilite
-		com	REVERSE
-		jsr	outstrdesc
-		com	REVERSE
-		bra	displaynxtitem
-outnohilite	jsr	outstrdesc
-displaynxtitem	leax	5,x
-		leau	1,u
 		subd	#1
-		bne	outnextstr
+		bne	loopgetwidth
 
 * Calculate free RAM for screen save
 
@@ -166,6 +151,15 @@ displaynxtitem	leax	5,x
 		subd	#STKBUF
 		subd	ARYEND
 		std	freeram4us
+
+* Display strings for the first time
+
+		clra
+		clrb
+dispnextitem	jsr	disp1item
+		addd	#1
+		cmpd	nstrings
+		bne	dispnextitem
 
 * Keyboard loop
 
@@ -255,16 +249,18 @@ retthisvalue	jmp	GIVABF
 outstrdesc	pshs	x,d
 		ldb	,x
 		ldx	2,x
-		jsr	LB9A3-1
-*		lda	#$0D
-*		jsr	PUTCHR
+		jsr	LB9A3-1		TODO - use HDBDOS/16 routine
 		puls	x,d,pc
 
 * Display ACCDth string in position and in reverse if selected
 
 disp1item	pshs	d,x
 		ldx	firststrdesc
-		bsr	accdx5
+		aslb			Multiply ACCD by 5
+		rola
+		aslb
+		rola
+		addd	,s
 		leax	d,x
 		ldd	,s
 		addd	ypos
@@ -280,16 +276,6 @@ disp1item	pshs	d,x
 		bra	showed1item
 noneedtorev	bsr	outstrdesc
 showed1item	puls	d,x,pc
-
-* Multiply ACCD by five
-
-accdx5		pshs	d
-		aslb
-		rola
-		aslb
-		rola
-		addd	,s++
-		rts
 
 * Wipe entire menu area (trashes some pixels left and right)
 
@@ -327,26 +313,6 @@ wipeabyte	sta	,x+		inner loop: wipe bytes within line
 		dec	ngrlineswipe
 		bne	wipealine
 		rts
-
-* wipemenuold	lda	ypos+1
-* 		sta	CURY
-* 		lda	nstrings+1
-* 		pshs	a
-* loopframe	lda	xpos+1
-* 		sta	CURX
-* 		ldb	menuwidth
-* loopline	lda	#$20
-* 		pshs	b
-* 		jsr	PUTCHR
-* 		puls	b
-* 		decb
-* 		bne	loopline
-* 		tst	CURX		did we wrap back to col 0?
-* 		beq	alreadynexty	don't increment CURY if so
-* 		inc	CURY
-* alreadynexty	dec	,s
-* 		bne	loopframe
-* 		puls	a,pc
 
 programend	equ	*
 programlength	equ	*-entry
