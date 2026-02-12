@@ -160,6 +160,15 @@ displaynxtitem	leax	5,x
 		subd	#1
 		bne	outnextstr
 
+* Calculate free RAM for screen save
+
+		tfr	s,d
+		subd	#STKBUF
+		subd	ARYEND
+		std	freeram4us
+
+* Keyboard loop
+
 getakey		jsr	[POLCAT]	get a key
 		beq	getakey
 		tfr	a,b
@@ -355,6 +364,7 @@ menuflags	rmb	2
 maxwidth	rmb	2
 memini		rmb	2
 memend1stline	rmb	2
+freeram4us	rmb	2
 menuwidth	rmb	1
 ngrlineswipe	rmb	1
 ngrbyteswipe	rmb	1
