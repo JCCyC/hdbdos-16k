@@ -133,6 +133,7 @@ gotmaxwidth	std	maxwidth
 		clr	menuwidth
 outnextstr	pshs	d
 		lda	,x
+		lbeq	errbadparm
 		cmpa	menuwidth
 		bls	notoverlylong
 		sta	menuwidth
