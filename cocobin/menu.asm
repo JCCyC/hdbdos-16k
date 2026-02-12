@@ -145,12 +145,42 @@ noexcesswidth	leax	5,x
 		subd	#1
 		bne	loopgetwidth
 
+* Calculate memory parameters
+
+		ldb	xpos+1		get byte occupied by first
+		lda	ypos+1		char of first line
+		jsr	[$E004]		GETMEMPOSXY
+		sty	memini		and save it
+		ldb	xpos+1		get byte occupied by last
+		addb	menuwidth	char of last line
+		decb
+		lda	ypos+1
+		jsr	[$E004]		GETMEMPOSXY
+		cmpb	#4		one more byte if char is on
+		bls	nousenextbyte	bit 5 or ahead
+		leay	1,y
+nousenextbyte	sty	memend1stline	save addr of last byte of line
+		ldb	nstrings+1
+		aslb
+		aslb
+		aslb
+		stb	ngrlineswipe	num of items * 8 = graphics lines
+		ldd	memend1stline
+		subd	memini
+		incb			ACCB = bytes per line
+		stb	ngrbyteswipe
+		lda	ngrlineswipe
+		mul
+		std	totalbyteswipe
+
 * Calculate free RAM for screen save
 
 		tfr	s,d
 		subd	#STKBUF
 		subd	ARYEND
 		std	freeram4us
+		cmpd	totalbyteswipe
+		lbls	LAC44		OM error if no RAM to save graph data
 
 * Display strings for the first time
 
@@ -279,29 +309,7 @@ showed1item	puls	d,x,pc
 
 * Wipe entire menu area (trashes some pixels left and right)
 
-wipemenu	ldb	xpos+1		get byte occupied by first
-		lda	ypos+1		char of first line
-		jsr	[$E004]		GETMEMPOSXY
-		sty	memini		and save it
-		ldb	xpos+1		get byte occupied by last
-		addb	menuwidth	char of last line
-		decb
-		lda	ypos+1
-		jsr	[$E004]		GETMEMPOSXY
-		cmpb	#4		one more byte if char is on
-		bls	nousenextbyte	bit 5 or ahead
-		leay	1,y
-nousenextbyte	sty	memend1stline	save addr of last byte of line
-		ldb	nstrings+1
-		aslb
-		aslb
-		aslb
-		stb	ngrlineswipe	num of items * 8 = graphics lines
-		ldd	memend1stline
-		subd	memini
-		incb			ACCB = bytes per line
-		stb	ngrbyteswipe
-		lda	REVERSE		fill with background pattern
+wipemenu	lda	REVERSE		fill with background pattern
 		ldx	memini
 wipealine	tfr	x,u		outer loop: wipe lines
 		ldb	ngrbyteswipe
@@ -331,6 +339,7 @@ maxwidth	rmb	2
 memini		rmb	2
 memend1stline	rmb	2
 freeram4us	rmb	2
+totalbyteswipe	rmb	2
 menuwidth	rmb	1
 ngrlineswipe	rmb	1
 ngrbyteswipe	rmb	1
