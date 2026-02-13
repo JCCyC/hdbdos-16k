@@ -9,16 +9,15 @@
 ROM16K		equ	1
 		USE	ecb_equates.asm
 
-* Allow exiting menu with left arrow
-MFLAG_LARROW	equ	1
-* Allow exiting menu with right arrow
-MFLAG_RARROW	equ	2
-* Allow exiting menu with Break
-MFLAG_BREAK	equ	4
-* Future - wipe menu area upon exit
-MFLAG_WIPE	equ	8
-* Future - allow F to select "[F]ile", X to select "e[X]it" etc
-MFLAG_LETTERS	equ	16
+* Option flags
+
+MFLAG_LARROW	equ	1	Allow exiting menu with left arrow
+MFLAG_RARROW	equ	2	Allow exiting menu with right arrow
+MFLAG_BREAK	equ	4	Allow exiting menu with Break
+MFLAG_WIPE	equ	8	Wipe menu area upon exit
+MFLAG_RESTORE	equ	16	Restore menu area upon exit
+MFLAG_LETTERS	equ	32	Future - allow F to select "[F]ile",
+				* X to select "e[X]it" etc
 
 		org	$7C00
 entry		bra	start
@@ -122,8 +121,6 @@ erroutofstring	ldb	#2*13		OS error if menu too large
 		jmp	LAC46
 gotmaxwidth	std	maxwidth
 
-*		std	$400		DEBUG
-
 * Determine menu width
 
 		ldx	firststrdesc
@@ -178,13 +175,21 @@ nousenextbyte	sty	memend1stline	save addr of last byte of line
 		tfr	s,d
 		subd	#STKBUF
 		subd	ARYEND
-		std	freeram4us
 		cmpd	totalbyteswipe
 		lbls	LAC44		OM error if no RAM to save graph data
 
+* Save screen if restore flag specified
+
+		lda	menuflags
+		anda	#MFLAG_RESTORE
+		beq	displaymenu1st
+
+		ldy	#screen2buf
+		jsr	framexfer
+
 * Display strings for the first time
 
-		clra
+displaymenu1st	clra
 		clrb
 dispnextitem	jsr	disp1item
 		addd	#1
@@ -260,10 +265,19 @@ keyout		tfr	a,b		exit key in 2nd item of num array
 		ldx	firstnumdesc
 		jsr	LBC35
 
-		lda	#MFLAG_WIPE	wipe menu area if flags say so
-		anda	menuflags
-		beq	goreturnval
-		bsr	wipemenu
+		lda	menuflags
+		anda	#MFLAG_WIPE+MFLAG_RESTORE
+		beq	goreturnval	do nothing if neither wipe nor restore
+		ldy	#buf2screen
+		anda	#MFLAG_RESTORE	restore if restore flag
+		bne	opisrestore
+		ldy	#wipe2screen	if it wasn't restore, it is wipe
+opisrestore	bsr	framexfer
+
+* 		lda	#MFLAG_WIPE	wipe menu area if flags say so
+* 		anda	menuflags
+* 		beq	goreturnval
+* 		bsr	wipemenu
 
 goreturnval	puls	a
 		cmpa	#13
@@ -307,19 +321,32 @@ disp1item	pshs	d,x
 noneedtorev	bsr	outstrdesc
 showed1item	puls	d,x,pc
 
-* Wipe entire menu area (trashes some pixels left and right)
+* Memory transfer multi-use loop - call with Y = byte-transfer subroutine
 
-wipemenu	lda	REVERSE		fill with background pattern
-		ldx	memini
-wipealine	tfr	x,u		outer loop: wipe lines
+framexfer	ldu	ARYEND
+framexfernou	ldx	memini
+		ldb	ngrlineswipe
+loopxferframe	pshs	b,x
 		ldb	ngrbyteswipe
-wipeabyte	sta	,x+		inner loop: wipe bytes within line
+loopxferline	jsr	,y		transfer or wipe, increment X and U
 		decb
-		bne	wipeabyte
-		tfr	u,x
-		leax	32,x		next line is always 32 bytes ahead
-		dec	ngrlineswipe
-		bne	wipealine
+		bne	loopxferline
+		puls	b,x
+		leax	32,x
+		decb
+		bne	loopxferframe
+		rts
+
+screen2buf	lda	,x+
+		sta	,u+
+		rts
+
+buf2screen	lda	,u+
+		sta	,x+
+		rts
+
+wipe2screen	lda	REVERSE
+		sta	,x+
 		rts
 
 programend	equ	*
@@ -338,7 +365,6 @@ menuflags	rmb	2
 maxwidth	rmb	2
 memini		rmb	2
 memend1stline	rmb	2
-freeram4us	rmb	2
 totalbyteswipe	rmb	2
 menuwidth	rmb	1
 ngrlineswipe	rmb	1

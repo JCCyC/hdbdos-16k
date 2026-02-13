@@ -1,7 +1,7 @@
-100 CLEAR 500
-101 LOCATE 0,0
-102 X$=STRING$(250,CHR$(127))
-103 FOR I=0 TO 5:PRINT X$;:NEXT
+100 CLEAR 500:PMODE 4:SCREEN 1:LOCATE 0,0:PRINT STRING$(32,CHR$(127))
+101 GM=LPEEK(&HBA)
+102 X$=LPEEK$(GM,192)
+103 FOR I=1 TO 31:LPOKE GM+I*192,X$:NEXT
 105 CLEAR 2000,&H7BFF
 110 GOSUB 1000
 120 LOADM"MENU"
@@ -23,9 +23,10 @@
 280 '       2=Accept Right Arrow
 290 '       4=Accept Break
 300 '       8=Wipe menu area on exit
-310 '      16=Accept Letters (TODO)
-320 X(0)=8  'Selected item
-330 X(1)=12 'Flags (in), Exit key (out)
+310 '      16=Restore menu area on exit
+315 '      32=Accept letters (TODO)
+320 X(0)=7  'Selected item
+330 X(1)=20 'Flags (in), Exit key (out)
 340 X(2)=X
 350 X(3)=Y
 360 X=USR0("X")
