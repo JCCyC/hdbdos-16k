@@ -76,7 +76,6 @@ PIPE DREAMS:
     type > $7F characters. Should work in direct mode too.
   - Make BASIC somehow understand text case and character normalization.
 - Some kind of basic database-like search?
-- Create a menu utility
 - Create a debug utility, including displaying a map of memory layout.
 
 
@@ -84,7 +83,6 @@ WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
-- Finishing the menu utility (save and restore screen mem)
 
 
 SUMMARY OF CHANGES:

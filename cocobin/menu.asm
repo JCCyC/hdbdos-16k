@@ -73,8 +73,8 @@ name2chars	ldd	aryname
 		ldd	aryname		look for numeric version of array
 		bsr	aryfind		get array start in X
 		bsr	arygetlen	get array length in ACCD
-		cmpd	#4		must have 4 elements
-		bne	errsubscript
+		cmpd	#4		must have at least 4 elements
+		blo	errsubscript
 		leax	7,x
 		stx	firstnumdesc
 
