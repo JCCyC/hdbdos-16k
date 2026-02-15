@@ -293,8 +293,31 @@ retthisvalue	jmp	GIVABF
 outstrdesc	pshs	x,d
 		ldb	,x
 		ldx	2,x
-		jsr	LB9A3-1		TODO - use HDBDOS/16 routine
-		puls	x,d,pc
+
+outstrloop	pshs	b
+		ldb	,x+
+		jsr	[$E006]		PAINTCHAR
+		puls	b
+		inc	CURX
+		decb
+		bne	outstrloop
+
+		ldx	2,s
+		ldb	,x
+		subb	menuwidth
+		beq	nomorespaces
+
+		negb
+
+spacesloop	pshs	b
+		ldb	#$20
+		jsr	[$E006]		PAINTCHAR
+		puls	b
+		inc	CURX
+		decb
+		bne	spacesloop
+
+nomorespaces	puls	x,d,pc
 
 * Display ACCDth string in position and in reverse if selected
 

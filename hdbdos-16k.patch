@@ -346,18 +346,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..4d24515
+index 0000000..cd94776
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-11 15:45:22'
++BUILDMSG        FCC 'Build 2026-02-15 18:10:57'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..a0de172
+index 0000000..b0dab16
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2015 @@
+@@ -0,0 +1,2016 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -384,6 +384,7 @@ index 0000000..a0de172
 +
 +		FDB	TSTHIRES	[$E002] - TEST IF IN HI-RES TXT MODE
 +		FDB	GETMEMPOSXY	[$E004] - OBTAIN MEM POS OF CHAR CELL
++		FDB	PAINTCHAR	[$E006] - PAINT A CHAR IN CURSOR POS
 +
 +INIT16K		PSHS A,B,X,Y,U
 +
