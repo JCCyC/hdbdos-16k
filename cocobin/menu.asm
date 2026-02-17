@@ -154,7 +154,7 @@ noexcesswidth	leax	5,x
 		lda	ypos+1
 		jsr	[$E004]		GETMEMPOSXY
 		cmpb	#4		one more byte if char is on
-		bls	nousenextbyte	bit 5 or ahead
+		blo	nousenextbyte	bit 4 or ahead
 		leay	1,y
 nousenextbyte	sty	memend1stline	save addr of last byte of line
 		ldb	nstrings+1

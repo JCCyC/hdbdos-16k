@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..4e01fc8
+index 0000000..dd4a104
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,199 @@
 +Package contents:
 +
 +- ROMs:
@@ -181,7 +181,7 @@ index 0000000..4e01fc8
 +- As much as possible, alter ROM tables in hdbdos.asm instead of redefining
 +  duplicates in el.asm. (Vectors, tokens, command tables...)
 +- Check sanity of non-16k compilation of ROMs
-+- INKEY$(S) waits S seconds (like TIMER FOR) and returns a key or "" if no
++- INKEY$(X) waits X seconds (like TIMER FOR) and returns a key or "" if no
 +  key was pressed
 +
 +
@@ -298,6 +298,7 @@ index 0000000..4e01fc8
 +    such characters.
 +- Now you can type BASIC commands in lowercase. This works whether you are in
 +  direct mode, inputting BASIC lines, or loading a program saved with ",A".
++- GOTO and GOSUB now accept numerical expressions as arguments.
 +
 +
 +ADDED FILES:
@@ -344,18 +345,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..f2d3361
+index 0000000..fd00b1d
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-16 11:04:39'
++BUILDMSG        FCC 'Build 2026-02-17 20:13:06'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..b0dab16
+index 0000000..5f84877
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2016 @@
+@@ -0,0 +1,2050 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -2077,6 +2078,40 @@ index 0000000..b0dab16
 +		CLR	DEVNUM
 +		RTS
 +
++* OUR 'GOTO' AND 'GOSUB' ACCEPT NUMERIC EXPRESSIONS
++
++H16GO		TFR	A,B		SAVE INPUT CHARACTER IN ACCB
++		JSR	GETNCH		GET A CHARACTER FROM BASIC
++		CMPB	#$A5		‘TO’ TOKEN
++		BEQ	GODOAGOTO	BRANCH IF GOTO
++		CMPB	#$A6		‘SUB’ TOKEN
++		LBNE	LAED7		‘SYNTAX ERROR’ IF NEITHER
++		LDB	#3		=ROOM FOR 6
++		JSR	LAC33		=BYTES ON STACK?
++		LDU	CHARAD		* SAVE CURRENT BASIC INPUT POINTER, LINE
++		LDX	CURLIN		* NUMBER AND SUB TOKEN ON STACK
++		LDA	#$A6		*
++		PSHS	U,X,A		*
++		BSR	GODOAGOTO	GO DO A ‘GOTO’
++		JMP	LAD9E		JUMP BACK TO BASIC’S MAIN LOOP
++* GOTO
++GODOAGOTO	JSR	GETCCH		GET CURRENT INPUT CHAR
++		JSR	LB73D		GET LINE NUMBER AS NUMERIC EXPRESSION
++		PSHS	X
++		JSR	LAEEB		ADVANCE BASIC’S POINTER TO END OF LINE
++		LEAX	$01,X		POINT TO START OF NEXT LINE
++		PULS	D		GET THE LINE NUMBER TO RUN
++		CMPD	CURLIN		COMPARE TO CURRENT LINE NUMBER
++		BHI	LINEAHEADOFUS	IF REO’D LINE NUMBER IS > CURRENT LINE NUMBER,
++					* DON’T START LOOKING FROM
++					* START OF PROGRAM
++		LDX	TXTTAB		BEGINNING OF PROGRAM
++LINEAHEADOFUS	JSR	LAD05		GO FIND A LINE NUMBER
++		LBCS	LAED2		‘UNDEFINED LINE NUMBER’
++		LEAX	-1,X		MOVE BACK TO JUST BEFORE START OF LINE
++		STX	CHARAD		RESET BASIC’S INPUT POINTER
++		RTS
++
 +* TEXT MODE CHARACTER OUT - REVERSE VIDEO VERSION
 +RVLA30A		TST	REVERSE
 +		LBNE	LA30A
@@ -2306,7 +2341,7 @@ index 0000000..b0dab16
 +
 +* ALTERED DISPATCH TABLE FOR COLOR BASIC PRIMARY COMMANDS
 +NEWBASDISPATCH	FDB	FOR			FOR 80
-+		FDB	GO			GO 81
++		FDB	H16GO			GO 81
 +		FDB	REM			REM 82
 +		FDB	REM			REM 83
 +		FDB	REM			ELSE 84

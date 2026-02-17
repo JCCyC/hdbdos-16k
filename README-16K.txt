@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Feb 16, 2026
+                          ToolShed GitHub repository as of Feb 17, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -63,7 +63,7 @@ TO DO:
 - As much as possible, alter ROM tables in hdbdos.asm instead of redefining
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
-- INKEY$(S) waits S seconds (like TIMER FOR) and returns a key or "" if no
+- INKEY$(X) waits X seconds (like TIMER FOR) and returns a key or "" if no
   key was pressed
 
 
@@ -180,6 +180,7 @@ SUMMARY OF CHANGES:
     such characters.
 - Now you can type BASIC commands in lowercase. This works whether you are in
   direct mode, inputting BASIC lines, or loading a program saved with ",A".
+- GOTO and GOSUB now accept numerical expressions as arguments.
 
 
 ADDED FILES:
