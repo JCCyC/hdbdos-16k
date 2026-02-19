@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Feb 17, 2026
+                          ToolShed GitHub repository as of Feb 18, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -63,8 +63,6 @@ TO DO:
 - As much as possible, alter ROM tables in hdbdos.asm instead of redefining
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
-- INKEY$(X) waits X seconds (like TIMER FOR) and returns a key or "" if no
-  key was pressed
 
 
 PIPE DREAMS:
@@ -181,6 +179,10 @@ SUMMARY OF CHANGES:
 - Now you can type BASIC commands in lowercase. This works whether you are in
   direct mode, inputting BASIC lines, or loading a program saved with ",A".
 - GOTO and GOSUB now accept numerical expressions as arguments.
+- INKEY$ now can be called with a timeout argument in seconds: X$=INKEY$(N)
+  where N is how many seconds to wait for a key before returning an empty
+  string. For NTSC machines, the maximum value is 1092 (18 min 12 sec),
+  whereas for PAL machines the maximum is 1310 (21 min 50 sec).
 
 
 ADDED FILES:

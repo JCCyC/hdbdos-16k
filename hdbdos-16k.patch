@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..dd4a104
+index 0000000..9b49deb
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,201 @@
 +Package contents:
 +
 +- ROMs:
@@ -181,8 +181,6 @@ index 0000000..dd4a104
 +- As much as possible, alter ROM tables in hdbdos.asm instead of redefining
 +  duplicates in el.asm. (Vectors, tokens, command tables...)
 +- Check sanity of non-16k compilation of ROMs
-+- INKEY$(X) waits X seconds (like TIMER FOR) and returns a key or "" if no
-+  key was pressed
 +
 +
 +PIPE DREAMS:
@@ -299,6 +297,10 @@ index 0000000..dd4a104
 +- Now you can type BASIC commands in lowercase. This works whether you are in
 +  direct mode, inputting BASIC lines, or loading a program saved with ",A".
 +- GOTO and GOSUB now accept numerical expressions as arguments.
++- INKEY$ now can be called with a timeout argument in seconds: X$=INKEY$(N)
++  where N is how many seconds to wait for a key before returning an empty
++  string. For NTSC machines, the maximum value is 1092 (18 min 12 sec),
++  whereas for PAL machines the maximum is 1310 (21 min 50 sec).
 +
 +
 +ADDED FILES:
@@ -345,18 +347,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..fd00b1d
+index 0000000..916aa32
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-17 20:13:06'
++BUILDMSG        FCC 'Build 2026-02-18 21:25:34'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..5f84877
+index 0000000..44d7cd7
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2050 @@
+@@ -0,0 +1,2081 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -472,10 +474,8 @@ index 0000000..5f84877
 +
 +		LDD #NEWBASDISPATCH
 +		STD COMVEC+3
-+		IFDEF USECBFUNCS
 +		LDD #NEWBASFUNCS
 +		STD COMVEC+8
-+		ENDC
 +
 +		JSR JCMDS
 +		IFNE STARTGRAPHICS
@@ -1970,6 +1970,40 @@ index 0000000..5f84877
 +		RTS
 +GOSNERR2	JMP	LB277
 +
++* 16K VERSION OF 'INKEY$()' HAS OPTIONAL NUMERIC ARG (SECONDS)
++
++H16INKEY	JSR	GETCCH
++		CMPA	#'(
++		LBNE	INKEY
++		JSR	LB262		GET ARG IN FPA0
++		LDA	TICKSPERSEC
++		LDX	#FPNUM50
++		CMPA	#50
++		BEQ	INKEY50HZ
++		LDX	#FPNUM60
++INKEY50HZ	JSR	LBACA		MULTIPLY ARGUMENT BY CLOCK IRQ FREQ
++		JSR	LB740		GET VALUE OF 0-65535 IN X
++		LDD	TIMVAL
++		LEAX	D,X		WAIT KEY TIL TIMER LSW REACHES THIS X
++		LEAS	-1,S
++LOOPWAITKEY	CMPX	TIMVAL		DID TIME CATCH UP WITH DEADLINE?
++		BEQ	NOKEYINTIME	YES, RETURN EMPTY
++GETFORINKEY	LDB	TIMVAL+1	POLL KEYBOARD EACH TIMER TICK
++		CMPB	,S
++		BEQ	LOOPWAITKEY
++		STB	,S
++		JSR	[POLCAT]	AS IT IS, WE ALMOST NEVER GET CHR$(3)
++		BNE	HASKEYINTIME
++		BRA	LOOPWAITKEY
++HASKEYINTIME	LEAS	1,S
++		STA	FPA0+3
++		JMP	LB68F		RETURN ONE CHAR STRING FROM FPA0+3
++NOKEYINTIME	LEAS	1,S
++		CLR	STRDES		RETURN EMPTY STRING
++		JMP	LB69B
++
++* LPOKE (16-BIT OR STRING)
++
 +LPOKE		JSR	LB73D		GET ADDR
 +		PSHS	X
 +		JSR	LB26D		CHECK COMMA
@@ -1988,6 +2022,8 @@ index 0000000..5f84877
 +		PULS	U		RECOVER ADDR
 +		STX	,U		LPOKE IT
 +		RTS
++
++* LPEEK (16-BIT OR STRING)
 +
 +LPEEK		LDX	CHARAD
 +		LDA	,X
@@ -2377,9 +2413,7 @@ index 0000000..5f84877
 +		FDB	EXEC			EXEC A2
 +		FDB	SKIPF			SKIPF A3
 +
-+		IFDEF	USECBFUNCS
 +* ALTERED DISPATCH TABLE FOR COLOR BASIC SECONDARY FUNCTIONS
-+* SO FAR THERE'S BEEN NO NEED TO USE THIS
 +NEWBASFUNCS	FDB	SGN			SGN 80
 +		FDB	INT			INT 81
 +		FDB	ABS			ABS 82
@@ -2398,9 +2432,8 @@ index 0000000..5f84877
 +		FDB	RIGHT			RIGHT 8F
 +		FDB	MID			MID 90
 +		FDB	POINT			POINT 91
-+		FDB	INKEY			INKEY 92
++		FDB	H16INKEY		INKEY 92
 +		FDB	MEM			MEM 93
-+		ENDC
 +
 +* THE "FONT", SUCH AS IT IS. DRAWN ON NOTEPAD FROM SWEET, SWEET
 +* MEMORIES OF SUPER COLOR WRITER. NO, REALLY. NOT KIDDING. HONEST.
