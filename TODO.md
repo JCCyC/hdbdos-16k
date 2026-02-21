@@ -1,4 +1,4 @@
-##ISSUES:
+## ISSUES:
 
 - Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead.
