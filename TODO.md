@@ -3,7 +3,7 @@
 - Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead.
 
-##FUTURE FEATURE PLANS:
+## FUTURE FEATURE PLANS:
 
 - ON BRK
 - Option to boot in text mode:
@@ -29,7 +29,7 @@
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
 
-##PIPE DREAMS:
+## PIPE DREAMS:
 
 - Enhance RENUM so it can renumber the first portion of a program, as opposed
   to only the second portion like it is currently in ECB.
@@ -40,7 +40,7 @@
 - Some kind of basic database-like search?
 - Create a debug utility, including displaying a map of memory layout.
 
-##WIP:
+## WIP:
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
