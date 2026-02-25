@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..568f0c2
+index 0000000..f85ea04
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,153 @@
 +Package contents:
 +
 +- ROMs:
@@ -251,6 +251,8 @@ index 0000000..568f0c2
 +  where N is how many seconds to wait for a key before returning an empty
 +  string. For NTSC machines, the maximum value is 1092 (18 min 12 sec),
 +  whereas for PAL machines the maximum is 1310 (21 min 50 sec).
++- HPRINT "filename[.ext][:drive]" outputs the file contents on screen, much
++  like MS-DOS "TYPE" or UNIX "cat".
 +
 +
 +ADDED FILES:
@@ -297,18 +299,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..bde6bea
+index 0000000..d06458e
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-21 15:52:14'
++BUILDMSG        FCC 'Build 2026-02-25 13:13:47'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..44d7cd7
+index 0000000..a9b9c61
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2081 @@
+@@ -0,0 +1,2101 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1350,7 +1352,7 @@ index 0000000..44d7cd7
 +HGET		EQU	LB44A
 +HPUT		EQU	LB44A
 +HBUFF		EQU	LB44A
-+HPRINT		EQU	LB44A
++*HPRINT		EQU	LB44A
 +ERRCMD		EQU	LB44A
 +BRK		EQU	LB44A
 +*LOCATE		EQU	LB44A
@@ -2010,6 +2012,26 @@ index 0000000..44d7cd7
 +		CLRA
 +		CLRB
 +		JMP	GIVABXF
++
++* HPRINT (EQUIVALENT TO CP/M OR MS-DOS "TYPE")
++
++HPRINT		JSR	LCFBB		PARSE FILENAME
++		JSR	LCA07		OPEN FILE, SETS DEVNUM
++		LDB	DEVNUM
++		PSHS	B		SAVE DEVNUM ON STACK
++
++HPRINTLOOP	JSR	LC5C4		GET A BYTE FROM FILE
++		TST	CINBFL		TEST END OF FILE
++		BNE	HPRINTEOF
++		CLR	DEVNUM		SET DEVNUM TO ZERO TO PRINT CHAR
++		JSR	PUTCHR		PRINT CHAR TO SCREEN
++		JSR	LA549		BREAK CHECK
++		LDA	,S
++		STA	DEVNUM		RETORE OPEN FILE'S DEVNUM
++		BRA	HPRINTLOOP	GO GET NEXT CHAR
++
++HPRINTEOF	LEAS	1,S
++		JMP	LA42D		CLOSE FILE AND WE'RE DONE
 +
 +* CHANGES TO FILES COMMAND SO IT DOESN'T FLASH BACK TO TEXT MODE
 +* IF WE'RE IN HI-RES TEXT MODE

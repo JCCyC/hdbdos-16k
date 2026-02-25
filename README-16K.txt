@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Feb 21, 2026
+                          ToolShed GitHub repository as of Feb 25, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -133,6 +133,8 @@ SUMMARY OF CHANGES:
   where N is how many seconds to wait for a key before returning an empty
   string. For NTSC machines, the maximum value is 1092 (18 min 12 sec),
   whereas for PAL machines the maximum is 1310 (21 min 50 sec).
+- HPRINT "filename[.ext][:drive]" outputs the file contents on screen, much
+  like MS-DOS "TYPE" or UNIX "cat".
 
 
 ADDED FILES:

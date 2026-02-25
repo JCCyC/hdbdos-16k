@@ -2,6 +2,9 @@
 
 - Errors in disk functions are sometimes not correctly intercepted - program
   silently ends instead.
+- If HPRINT "file" is interrupted with BREAK, the system file buffer stays
+  open and future operations like LOAD or another HPRINT give an "already
+  open" error.
 
 ## FUTURE FEATURE PLANS:
 
