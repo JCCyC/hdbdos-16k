@@ -3,7 +3,7 @@ all: cocobin.dsk
 bin: menu.bin type.bin
 
 clean:
-	rm -f menu.bin menu.lst cocobin.dsk
+	rm -f menu.bin menu.lst type.bin type.lst cocobin.dsk
 
 menu.bin: menu.asm ecb_equates.asm rom16kvars.asm Makefile
 	lwasm -9 -b -omenu.bin -lmenu.lst menu.asm
