@@ -286,11 +286,6 @@ keyout		tfr	a,b		exit key in 2nd item of num array
 		ldy	#wipe2screen	if it wasn't restore, it is wipe
 opisrestore	bsr	framexfer
 
-* 		lda	#MFLAG_WIPE	wipe menu area if flags say so
-* 		anda	menuflags
-* 		beq	goreturnval
-* 		bsr	wipemenu
-
 goreturnval	puls	a
 		cmpa	#13
 		beq	retselected
@@ -413,6 +408,8 @@ inputstart	jsr	getarynamearg	parse array name from string arg
 		leax	d,x
 		stx	xfieldend
 
+* Paint field starting at (xpos, ypos)
+
 		lda	xpos+1
 		sta	CURX
 		lda	ypos+1
@@ -426,7 +423,40 @@ nextfldchar	ldb	#$20
 		blo	nextfldchar
 		com	REVERSE
 
-		rts
+* Calculate free RAM for text field
+
+		tfr	s,d
+		subd	#STKBUF
+		subd	ARYEND
+		cmpd	maxwidth
+		lbls	LAC44		OM error if no RAM for string
+
+* Not implemented - just fill the ARYEND edit buffer with Y and return
+
+		ldx	ARYEND
+		lda	#'Y'
+		ldb	maxwidth+1
+fillfield	sta	,x+
+		decb
+		bne	fillfield
+		clr	,x
+
+* Trim ARYEND edit buffer trailing spaces and return as string
+
+		ldx	ARYEND
+		ldd	maxwidth
+		leax	d,x		X -> one char past end of field
+		clr	,x		place terminator in case length is max
+trimfldloop	lda	,-x
+		cmpa	#$20
+		bne	returnfield	found a non-space, stop trimming
+		clr	,x		last char was space, trim
+		cmpx	ARYEND		reached beginning of string?
+		bhi	trimfldloop	yes, stop trimming
+		bra	trimfldloop	no, go net previous char
+returnfield	ldx	ARYEND
+		leax	-1,x
+		jmp	LB518		return new string
 
 
 programend	equ	*
