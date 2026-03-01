@@ -21,8 +21,10 @@ MFLAG_LETTERS	equ	32	Future - allow F to select "[F]ile",
 
 		org	$7C00
 entry		ldx	USRADR		locate USRn() function array
-		ldu	#start		define menu function
-		stu	,x		to be USR0
+		ldu	#menustart	define menu function
+		stu	,x++		to be USR0
+		ldu	#inputstart	define input function
+		stu	,x		to be USR1
 		rts			return to BASIC
 
 errbadparm	jmp	LB44A		FC error if bad parm
@@ -53,7 +55,9 @@ aryfind		tfr	d,u
 		tfr	u,d
 		bra	@loop
 
-start		jsr	LB146		Check for string parameter
+* Make sure passed argument (in FPA0) is string and parse array name
+
+getarynamearg	jsr	LB146		Check for string parameter
 		ldx	FPA0+2		x = string descriptor addr
 		lda	,x		acca = len (gotta be 1 or 2)
 		beq	errbadparm
@@ -63,9 +67,14 @@ start		jsr	LB146		Check for string parameter
 		ldu	,u		u = first 2 bytes
 		stu	aryname		save 'em
 		cmpa	#2
-		beq	name2chars
+		beq	@is2chars
 		clr	aryname+1	if 1-byte name, zero 2nd byte
-name2chars	ldd	aryname
+@is2chars	ldd	aryname		return array name in ACCD in
+		rts			addition to aryname variable
+
+* MENU UTILITY
+
+menustart	bsr	getarynamearg	parse array name from string arg
 		orb	#$80		look for string version of array
 		bsr	aryfind		get array start in X
 		bsr	arygetlen	get array length in ACCD
@@ -375,6 +384,51 @@ wipe2screen	lda	REVERSE
 		sta	,x+
 		rts
 
+* EDITABLE INPUT UTILITY
+
+inputstart	jsr	getarynamearg	parse array name from string arg
+		jsr	aryfind		get array start in X
+		jsr	arygetlen	get array length in ACCD
+		cmpd	#3		must have at least 3 elements
+		lblo	errsubscript	(X, Y pos and field length)
+		leax	7,x
+		stx	firstnumdesc
+
+		jsr	LBC14		1st descriptor = x pos - VALIDATE!
+		jsr	LB740
+		stx	xpos
+
+		ldx	firstnumdesc
+		leax	5,x		2th descriptor = y pos - VALIDATE!
+		jsr	LBC14
+		jsr	LB740
+		stx	ypos
+
+		ldx	firstnumdesc
+		leax	10,x		3rd descriptor = width - VALIDATE!
+		jsr	LBC14
+		jsr	LB740
+		stx	maxwidth
+		ldd	xpos
+		leax	d,x
+		stx	xfieldend
+
+		lda	xpos+1
+		sta	CURX
+		lda	ypos+1
+		sta	CURY
+		com	REVERSE
+nextfldchar	ldb	#$20
+		jsr	[$E006]		PAINTCHAR
+		inc	CURX
+		lda	CURX
+		cmpa	xfieldend+1
+		blo	nextfldchar
+		com	REVERSE
+
+		rts
+
+
 programend	equ	*
 programlength	equ	*-entry
 
@@ -392,6 +446,7 @@ maxwidth	rmb	2
 memini		rmb	2
 memend1stline	rmb	2
 totalbyteswipe	rmb	2
+xfieldend	rmb	2
 menuwidth	rmb	1
 ngrlineswipe	rmb	1
 ngrbyteswipe	rmb	1
