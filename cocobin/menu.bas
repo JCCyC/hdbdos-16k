@@ -4,8 +4,8 @@
 103 FOR I=1 TO 31:LPOKE GM+I*192,X$:NEXT
 105 CLEAR 2000,&H7BFF
 110 GOSUB 1000
-120 LOADM"MENU"
-130 DEFUSR0=&H7C00
+120 RUNM"MENU"
+130 REM The above set DEFUSR0=(menu function addr) automatically
 140 DIM X$(10)
 150 X$(0)="Oscarito"
 160 X$(1)="Grande Otelo"

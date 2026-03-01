@@ -20,7 +20,10 @@ MFLAG_LETTERS	equ	32	Future - allow F to select "[F]ile",
 				* X to select "e[X]it" etc
 
 		org	$7C00
-entry		bra	start
+entry		ldx	USRADR		locate USRn() function array
+		ldu	#start		define menu function
+		stu	,x		to be USR0
+		rts			return to BASIC
 
 errbadparm	jmp	LB44A		FC error if bad parm
 errsubscript	jmp	LB447		BS error if not one-dimensional
