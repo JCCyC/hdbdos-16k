@@ -299,11 +299,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..db6f3a9
+index 0000000..eca36d1
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-02-25 14:13:51'
++BUILDMSG        FCC 'Build 2026-03-01 00:20:59'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
@@ -2431,7 +2431,7 @@ index 0000000..8bd70a4
 +		INCLUDE font64.asm
 diff --git a/hdbdos/font51.asm b/hdbdos/font51.asm
 new file mode 100644
-index 0000000..2f6ee85
+index 0000000..d6afad8
 --- /dev/null
 +++ b/hdbdos/font51.asm
 @@ -0,0 +1,1007 @@
@@ -3444,7 +3444,7 @@ index 0000000..2f6ee85
 +		FCB %00000110
 diff --git a/hdbdos/font64.asm b/hdbdos/font64.asm
 new file mode 100644
-index 0000000..d91769e
+index 0000000..7d217a7
 --- /dev/null
 +++ b/hdbdos/font64.asm
 @@ -0,0 +1,1007 @@
@@ -3871,14 +3871,14 @@ index 0000000..d91769e
 +		FCB %01001000
 +		FCB %00000000
 +
-+		FCB %11101110
-+		FCB %00000000
-+		FCB %00001110
-+		FCB %00000000
-+		FCB %00001110
-+		FCB %00000000
-+		FCB %00001110
-+		FCB %00000000
++		FCB %11101010
++		FCB %00000101
++		FCB %00001010
++		FCB %00000101
++		FCB %00001010
++		FCB %00000101
++		FCB %00001010
++		FCB %00000101
 +
 +		FCB %00101110
 +		FCB %01001110
