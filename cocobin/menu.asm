@@ -408,21 +408,6 @@ inputstart	jsr	getarynamearg	parse array name from string arg
 		leax	d,x
 		stx	xfieldend
 
-* Paint field starting at (xpos, ypos)
-
-		lda	xpos+1
-		sta	CURX
-		lda	ypos+1
-		sta	CURY
-		com	REVERSE
-nextfldchar	ldb	#$20
-		jsr	[$E006]		PAINTCHAR
-		inc	CURX
-		lda	CURX
-		cmpa	xfieldend+1
-		blo	nextfldchar
-		com	REVERSE
-
 * Calculate free RAM for text field
 
 		tfr	s,d
@@ -431,21 +416,69 @@ nextfldchar	ldb	#$20
 		cmpd	maxwidth
 		lbls	LAC44		OM error if no RAM for string
 
-* Not implemented - just fill the ARYEND edit buffer with Y and return
+* Paint field starting at (xpos, ypos) and clear ARYEND edit buffer
+* (mawwidth + 1) characters are cleared
 
+		lda	xpos+1
+		sta	CURX
+		lda	ypos+1
+		sta	CURY
+		com	REVERSE
+		ldu	ARYEND
+nextfldchar	ldb	#$20
+		stb	,u+
+		jsr	[$E006]		PAINTCHAR
+		inc	CURX
+		lda	CURX
+		cmpa	xfieldend+1
+		bls	nextfldchar
+
+* Keyboard loop
+
+		clr	editpos
+		lda	xpos+1
+		sta	CURX
+		lda	ypos+1
+		sta	CURY
+kbdeditloop	jsr	[$E008]		HIRESCIN
+		cmpa	#13		enter?
+		beq	editfinish
+		cmpa	#8		backspace?
+		beq	editbackspace
+		cmpa	#$20		other control character?
+		blo	kbdeditloop
+		ldb	editpos
 		ldx	ARYEND
-		lda	#'Y'
-		ldb	maxwidth+1
-fillfield	sta	,x+
+		abx
+		sta	,x
+		tfr	a,b
+		jsr	[$E006]		PAINTCHAR
+		lda	editpos
+		inca
+		cmpa	maxwidth+1	are we at last position?
+		bhi	kbdeditloop	if so, don't increment position
+		sta	editpos
+		inc	CURX
+		bra	kbdeditloop
+
+editbackspace	ldb	editpos
+		tstb
+		beq	kbdeditloop
+		ldx	ARYEND
+		abx
+		lda	#$20
+		sta	,x
 		decb
-		bne	fillfield
-		clr	,x
+		stb	editpos
+		dec	CURX
+		bra	kbdeditloop
 
 * Trim ARYEND edit buffer trailing spaces and return as string
 
+editfinish	com	REVERSE
 		ldx	ARYEND
-		ldd	maxwidth
-		leax	d,x		X -> one char past end of field
+		ldb	maxwidth+1
+		abx			X -> one char past end of field
 		clr	,x		place terminator in case length is max
 trimfldloop	lda	,-x
 		cmpa	#$20
@@ -477,6 +510,7 @@ memini		rmb	2
 memend1stline	rmb	2
 totalbyteswipe	rmb	2
 xfieldend	rmb	2
+editpos		rmb	1
 menuwidth	rmb	1
 ngrlineswipe	rmb	1
 ngrbyteswipe	rmb	1
