@@ -299,18 +299,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..087d3ef
+index 0000000..4588e4b
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-03-02 11:29:45'
++BUILDMSG        FCC 'Build 2026-03-04 17:38:02'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..5dfa8ae
+index 0000000..3ba26f1
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2119 @@
+@@ -0,0 +1,2129 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -2360,6 +2360,16 @@ index 0000000..5dfa8ae
 +
 +* 6309 NATIVE MODE IRQ SERVICE (DIFFERENT STACK)
 +* (TODO)
++
++* BMP FILE EXTENSION
++BMPFILEX	FCC	'BMP'
++
++* BMP FILE HEADER FOR PMODE 4 SAVE SCREEN
++PMODE4BMPHDR	FCB	$42,$4D,$3E,$18,$00,$00,$00,$00,$00,$00,$3E,$00,$00,$00,$28,$00
++		FCB	$00,$00,$00,$01,$00,$00,$C0,$00,$00,$00,$01,$00,$01,$00,$00,$00
++		FCB	$00,$00,$00,$18,$00,$00,$23,$2E,$00,$00,$23,$2E,$00,$00,$02,$00
++		FCB	$00,$00,$02,$00,$00,$00,$00,$00,$00,$00,$24,$BC,$2E,$00
++PMODE4BMPHDRSZ	EQU	*-PMODE4BMPHDR
 +
 +* FLOATING POINT CONSTANTS
 +FPNUM50		FCB	$86,$48,$00,$00,$00

@@ -27,6 +27,7 @@
 - As much as possible, alter ROM tables in hdbdos.asm instead of redefining
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
+- SAVE SCREEN and LOAD SCREEN
 
 ## PIPE DREAMS:
 
@@ -43,3 +44,4 @@
 
 - Allow putting BASIC in 6309 Native Mode, i.e., change interrupt handling
   for different stack layout in NMI (simple) and IRQ (complicated) handlers.
+- SAVE SCREEN
