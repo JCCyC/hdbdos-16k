@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..f85ea04
+index 0000000..62e90d7
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,155 @@
 +Package contents:
 +
 +- ROMs:
@@ -253,6 +253,8 @@ index 0000000..f85ea04
 +  whereas for PAL machines the maximum is 1310 (21 min 50 sec).
 +- HPRINT "filename[.ext][:drive]" outputs the file contents on screen, much
 +  like MS-DOS "TYPE" or UNIX "cat".
++- SAVE SCREEN "filename[.ext][:drive]" saves a PMODE 4 screen to a BMP format
++  image file which can be read on a modern device.
 +
 +
 +ADDED FILES:
@@ -299,18 +301,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..4588e4b
+index 0000000..a62250c
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-03-04 17:38:02'
++BUILDMSG        FCC 'Build 2026-03-04 23:21:35'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..3ba26f1
+index 0000000..014083a
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2129 @@
+@@ -0,0 +1,2159 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1279,7 +1281,7 @@ index 0000000..3ba26f1
 +		fdb       MERGE               MERGE / D5
 +		fdb       RENAME              RENAME / D6
 +		fdb       RSET                RSET / D7
-+		fdb       SAVE                SAVE / D8
++		fdb       H16SAVE             SAVE / D8
 +		fdb       WRITE               WRITE / D9
 +		fdb       VERIFY              VERIFY / DA
 +		fdb       UNLOAD              UNLOAD / DB
@@ -1955,6 +1957,36 @@ index 0000000..3ba26f1
 +		CLR	STRDES		RETURN EMPTY STRING
 +		JMP	LB69B
 +
++* SAVE SCREEN
++
++H16SAVE		CMPA	#$BF		TOKEN FOR SCREEN?
++		LBNE	SAVE		NO, GO TO DOS SAVE HANDLER
++		JSR	GETNCH		YES, SKIP OVER IT
++		LDA	PMODE
++		CMPA	#4		REQUIRE PMODE 4
++		LBNE	GOFCERR
++		LDX	#BMPFILEX	DEFAULT EXTENSION IS .BMP
++		JSR	LC938		PARSE FILENAME
++		LDD	#$0200		FILE TYPE=2, ASCII FLAG=0 (BINARY)
++		STD	DFLTYP
++		JSR	LCA04		OPEN FOR WRITING
++		LDX	#PMODE4BMPHDR	POINT TO FILE HEADER
++BMPHDRWRLOOP	LDD	,X++		GET TWO BYTES
++		JSR	LCFB3		WRITE THEM
++		CMPX	#PMODE4BMPHDEND
++		BLO	BMPHDRWRLOOP	UNTIL END OF HEADER
++		LDU	BEGGRP
++		LEAU	6112,U		POINT TO LAST SCANLINE
++SVSCRNLOOP	LDX	#16		EACH SCANLINE HAS 16*2 BYTES
++SVSCRNLINELOOP	LDD	,U++		GET TWO BYTES
++		JSR	LCFB3		WRITE THEM
++		LEAX	-1,X
++		BNE	SVSCRNLINELOOP
++		LEAU	-64,U		HOP BACK TO SCANLINE ABOVE
++		CMPU	BEGGRP		OVERSHOT BEGINNING?
++		BHS	SVSCRNLOOP	GO WRITE SCANLINE ABOVE IF NOT
++		JMP	LA42D		CLOSE FILE
++
 +* LPOKE (16-BIT OR STRING)
 +
 +LPOKE		JSR	LB73D		GET ADDR
@@ -2369,7 +2401,7 @@ index 0000000..3ba26f1
 +		FCB	$00,$00,$00,$01,$00,$00,$C0,$00,$00,$00,$01,$00,$01,$00,$00,$00
 +		FCB	$00,$00,$00,$18,$00,$00,$23,$2E,$00,$00,$23,$2E,$00,$00,$02,$00
 +		FCB	$00,$00,$02,$00,$00,$00,$00,$00,$00,$00,$24,$BC,$2E,$00
-+PMODE4BMPHDRSZ	EQU	*-PMODE4BMPHDR
++PMODE4BMPHDEND	EQU	*
 +
 +* FLOATING POINT CONSTANTS
 +FPNUM50		FCB	$86,$48,$00,$00,$00

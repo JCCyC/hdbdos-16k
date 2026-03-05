@@ -135,6 +135,8 @@ SUMMARY OF CHANGES:
   whereas for PAL machines the maximum is 1310 (21 min 50 sec).
 - HPRINT "filename[.ext][:drive]" outputs the file contents on screen, much
   like MS-DOS "TYPE" or UNIX "cat".
+- SAVE SCREEN "filename[.ext][:drive]" saves a PMODE 4 screen to a BMP format
+  image file which can be read on a modern device.
 
 
 ADDED FILES:
