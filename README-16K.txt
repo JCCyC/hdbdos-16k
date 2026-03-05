@@ -27,7 +27,7 @@ Package contents:
 
 - Patch:
 hdbdos-16k.patch          Changes to generate HDB-DOS/16, applies cleanly to
-                          ToolShed GitHub repository as of Mar 4, 2026
+                          ToolShed GitHub repository as of Mar 5, 2026
                           (https://github.com/nitros9project/toolshed)
 
 README.txt                This file
@@ -137,6 +137,8 @@ SUMMARY OF CHANGES:
   like MS-DOS "TYPE" or UNIX "cat".
 - SAVE SCREEN "filename[.ext][:drive]" saves a PMODE 4 screen to a BMP format
   image file which can be read on a modern device.
+- LOAD SCREEN "filename[.ext][:drive]" reads a 256x192 two-color BMP format
+  image file into the PMODE 4 screen.
 
 
 ADDED FILES:

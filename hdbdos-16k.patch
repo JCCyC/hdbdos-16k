@@ -112,10 +112,10 @@ index 7d0dddf..777ab20 100644
  	 $(DRAGONROM) $(DRAGONWAV) $(DRAGONBIN) $(HISPEED)
 diff --git a/hdbdos/README-16K.txt b/hdbdos/README-16K.txt
 new file mode 100644
-index 0000000..62e90d7
+index 0000000..2177214
 --- /dev/null
 +++ b/hdbdos/README-16K.txt
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,157 @@
 +Package contents:
 +
 +- ROMs:
@@ -255,6 +255,8 @@ index 0000000..62e90d7
 +  like MS-DOS "TYPE" or UNIX "cat".
 +- SAVE SCREEN "filename[.ext][:drive]" saves a PMODE 4 screen to a BMP format
 +  image file which can be read on a modern device.
++- LOAD SCREEN "filename[.ext][:drive]" reads a 256x192 two-color BMP format
++  image file into the PMODE 4 screen.
 +
 +
 +ADDED FILES:
@@ -301,18 +303,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..a62250c
+index 0000000..2de271e
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-03-04 23:21:35'
++BUILDMSG        FCC 'Build 2026-03-05 17:23:45'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..014083a
+index 0000000..3060533
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2159 @@
+@@ -0,0 +1,2196 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -1276,7 +1278,7 @@ index 0000000..014083a
 +		fdb       FIELD               FIELD / D0
 +		fdb       H16FILES            FILES / D1
 +		fdb       KILL                KILL / D2
-+		fdb       LOAD                LOAD / D3
++		fdb       H16LOAD             LOAD / D3
 +		fdb       LSET                LSET / D4
 +		fdb       MERGE               MERGE / D5
 +		fdb       RENAME              RENAME / D6
@@ -1956,6 +1958,43 @@ index 0000000..014083a
 +NOKEYINTIME	LEAS	1,S
 +		CLR	STRDES		RETURN EMPTY STRING
 +		JMP	LB69B
++
++* LOAD SCREEN
++
++H16LOAD		CMPA	#$BF		TOKEN FOR SCREEN?
++		LBNE	LOAD		NO, GO TO DOS LOAD HANDLER
++		JSR	GETNCH		YES, SKIP OVER IT
++		LDA	PMODE
++		CMPA	#4		REQUIRE PMODE 4
++		LBNE	GOFCERR
++		LDX	#BMPFILEX	DEFAULT EXTENSION IS .BMP
++		JSR	LC938		PARSE FILENAME
++		JSR	LCA07		OPEN FILE, SETS DEVNUM
++
++		LDX	#PMODE4BMPHDEND-PMODE4BMPHDR	HEADER LENGTH
++		LDU	#CASBUF				READ TO CASBUF
++LOOPREADBMPHDR	JSR	LC5C4		GET A BYTE FROM FILE
++		JSR	LB03F		IE ERROR IF NO BYTES
++		STA	,U+
++		LEAX	-1,X
++		BNE	LOOPREADBMPHDR
++
++		* TODO - SANITY CHECK ON HEADER DATA
++
++		LDU	BEGGRP
++		LEAU	6112,U		POINT TO LAST SCANLINE
++
++LOOPSCRNREAD	LDX	#32		BYTES PER SCANLINE
++LOOPLINEREAD	JSR	LC5C4		GET A BYTE FROM FILE
++		JSR	LB03F		IE ERROR IF NO BYTES
++		STA	,U+		PLACE IT ON FRAMEBUFFER
++		LEAX	-1,X
++		BNE	LOOPLINEREAD
++		LEAU	-64,U		HOP BACK TO SCANLINE ABOVE
++		CMPU	BEGGRP		OVERSHOT BEGINNING?
++		BHS	LOOPSCRNREAD	GO WRITE SCANLINE ABOVE IF NOT
++
++		JMP	LA42D		CLOSE FILE
 +
 +* SAVE SCREEN
 +

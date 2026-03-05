@@ -10,9 +10,7 @@ ROM16K		equ	1
 		USE	ecb_equates.asm
 
 		org	$7C00
-entry		bra	start
-
-start		lda	DEVNUM
+entry		lda	DEVNUM
 		pshs	a
 
 charloop	lda	#1

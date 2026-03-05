@@ -27,8 +27,8 @@
 - As much as possible, alter ROM tables in hdbdos.asm instead of redefining
   duplicates in el.asm. (Vectors, tokens, command tables...)
 - Check sanity of non-16k compilation of ROMs
-- LOAD SCREEN to complement SAVE SCREEN
-- Have SAVE SCREEN work in other PMODEs
+- Have SAVE SCREEN and LOAD SCREEN work in other PMODEs
+- Better sanity checks and performance improvements on LOAD SCREEN
 
 ## PIPE DREAMS:
 
