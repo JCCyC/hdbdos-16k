@@ -26,3 +26,4 @@ cocobin.dsk: menu.bin menu.bas type.bin type.bas Makefile
 	decb copy /tmp/meminfo_cocobin -1 -b -l -r cocobin.dsk,MEMINFO.TXT
 	rm -f /tmp/meminfo_cocobin
 	decb copy /etc/passwd -1 -b -l -r cocobin.dsk,PASSWD.TXT
+	decb copy -2 -b williams.bmp cocobin.dsk,WILLIAMS.BMP
