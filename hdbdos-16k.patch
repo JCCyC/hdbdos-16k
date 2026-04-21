@@ -303,18 +303,18 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..2de271e
+index 0000000..bde5a1d
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-03-05 17:23:45'
++BUILDMSG        FCC 'Build 2026-04-21 08:33:26'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
-index 0000000..3060533
+index 0000000..c4054f8
 --- /dev/null
 +++ b/hdbdos/el.asm
-@@ -0,0 +1,2196 @@
+@@ -0,0 +1,2191 @@
 +* HDB-DOS/16: Additions and Enhancements to HDB-DOS
 +* Copyright (C) 2012-2025 Juan Carlos Castro y Castro <jccyc@gmail.com>
 +*
@@ -344,9 +344,7 @@ index 0000000..3060533
 +		FDB	PAINTCHAR	[$E006] - PAINT A CHAR IN CURSOR POS
 +		FDB	HIRESCIN	[$E008] - WAIT FOR CHAR, BLINK CURSOR
 +
-+INIT16K		PSHS A,B,X,Y,U
-+
-+		CLRA
++INIT16K		CLRA
 +		DECA			* VARIABLES INITIALIZED TO $FF
 +		STA ERRNO
 +		STA REVERSE
@@ -388,9 +386,9 @@ index 0000000..3060533
 +		LDA	#AMERICLOCK
 +NOBURGERS4ME	STA	TICKSPERSEC
 +
-+		LDX USRADR		* POINT TO START OF USR ARRAY +8 WORDS
-+		LDD #USR8FUNC
-+		STD 16,X			* SET USR8
++*		LDX USRADR		* POINT TO START OF USR ARRAY
++*		LDD #USR8FUNC
++*		STD 16,X		* SET USR8
 +
 +		LDD #CACHAVEC2
 +		STD RVEC2+1
@@ -436,10 +434,10 @@ index 0000000..3060533
 +
 +		JSR JCMDS
 +		IFNE STARTGRAPHICS
-+		JSR DOSCREEN1		* COMMENTED: START IN 32X16, ELSE 51X24
++		JSR DOSCREEN1		* IF COMMENTED: START IN 32X16, ELSE 51X24
 +		ENDC
 +
-+		PULS A,B,X,Y,U,PC
++		RTS
 +
 +PMODE4		LDA #4
 +		STA PMODE
@@ -451,21 +449,18 @@ index 0000000..3060533
 +		STA HORBYT
 +		RTS
 +
-+SET51COLS	PSHS A,B
-+		BSR PMODE4
++SET51COLS	BSR PMODE4
 +		LDA #51
 +		STA HRTEXTWIDTH
 +		LDD #CHARSET51
-+		STD FONTLOCATION
-+		PULS A,B,PC
++SETFONTLOC	STD FONTLOCATION
++		RTS
 +
-+SET64COLS	PSHS A,B
-+		BSR PMODE4
++SET64COLS	BSR PMODE4
 +		LDA #64
 +		STA HRTEXTWIDTH
 +		LDD #CHARSET64
-+		STD FONTLOCATION
-+		PULS A,B,PC
++		BRA SETFONTLOC
 +
 +*
 +* MACROS
