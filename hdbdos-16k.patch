@@ -1,8 +1,8 @@
 diff --git a/cocoroms/Makefile b/cocoroms/Makefile
-index 0874881..2e3bbeb 100644
+index 02b8ee5..b48d329 100644
 --- a/cocoroms/Makefile
 +++ b/cocoroms/Makefile
-@@ -9,8 +9,10 @@ cb_equates.asm: equates.asm bas.asm
+@@ -12,8 +12,10 @@ cb_equates.asm: equates.asm bas.asm
  extbas11.rom: cb_equates.asm extbas.asm
  	lwasm --raw -o $@ $^
  
@@ -15,15 +15,6 @@ index 0874881..2e3bbeb 100644
  
  disk11.rom: ecb_equates.asm disk.asm
  	lwasm --raw --pragma=noindex0tonone -o $@ $^
-@@ -19,7 +21,7 @@ coco3.rom: equates.asm coco3.asm
- 	lwasm --raw -o $@ $^
- 
- checksum:
--	md5 *.rom >md5sums-new.txt
-+	md5sum *.rom >md5sums-new.txt
- 
- clean:
- 	-rm -f bas13.rom cb_equates.asm ecb_equates.asm extbas11.rom disk11.rom coco3.rom md5sums-new.txt
 diff --git a/cocoroms/extbas.asm b/cocoroms/extbas.asm
 index cb207e8..2595aeb 100644
 --- a/cocoroms/extbas.asm
@@ -303,11 +294,11 @@ index 0000000..a5eb381
 +exit $?
 diff --git a/hdbdos/buildmsg.asm b/hdbdos/buildmsg.asm
 new file mode 100644
-index 0000000..bde5a1d
+index 0000000..7bbb35b
 --- /dev/null
 +++ b/hdbdos/buildmsg.asm
 @@ -0,0 +1,2 @@
-+BUILDMSG        FCC 'Build 2026-04-21 08:33:26'
++BUILDMSG        FCC 'Build 2026-06-01 11:42:43'
 +                FCB 13,13,0
 diff --git a/hdbdos/el.asm b/hdbdos/el.asm
 new file mode 100644
